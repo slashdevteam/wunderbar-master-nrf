@@ -2,33 +2,28 @@
 
 #include "mbed.h"
 
-const uint32_t DUMMY_BYTE = 0xFF;
+using spiSlaveReadReqCb = mbed::Callback<void(void)>;
 
-// Whether or not HW CS line should be used in SPI driver
-#if 0
-#define SPI_HW_SSEL
-#endif 
-
-class nrf51822_driver
+class Nrf51822Driver
 {
-    public:
-    nrf51822_driver();
+public:
+    Nrf51822Driver();
     // do HW chip reset
     void reset_chip();
     // config communication settings, sets callback to receive data from nrf when requesting
-    void config(void (*recv_func)());
+    void config(spiSlaveReadReqCb cb);
     // sets/changes callback to receive data from nrf when requesting
-    void set_recv_ready_cb(void (*recv_func)());
+    void set_recv_ready_cb(spiSlaveReadReqCb cb);
 
     // sending and receiving data
-    void write(char* tx_data, uint32_t size);
-    void write(char* tx_data, char* rx_data, uint32_t size);
+    void write(const char* tx_data, uint32_t size);
     void read(char* rx_data, uint32_t size);
+    void read_write(char* rx_data, const char* tx_data, uint32_t size);
 
     // get total number of sent bytes (wraps arround)
     uint32_t get_n_bytes_sent() const;
     
-    private:  
+private:
     #ifndef SPI_HW_SSEL
     DigitalOut   ssel;
     #endif
@@ -36,9 +31,9 @@ class nrf51822_driver
     InterruptIn  recv_data_irq;
     Thread       recv_data_thread;
 
-    void         (*recv_data_ext_cb)();
-    void         recv_data_irq_cb();
-    void         recv_data_handler();
+    spiSlaveReadReqCb recv_data_ext_cb;
+    void              recv_data_irq_cb();
+    void              recv_data_handler();
 
     //chip select on/off
     void cs_act();
