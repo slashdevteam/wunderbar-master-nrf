@@ -39,7 +39,7 @@ void Nrf51822::reset()
     resetPin = LOW;
 
     // hold it down
-    wait_us(NRF_RESET_TIME_US);
+    wait_us(NRF_RESET_TIME_US*2);
 
     // pull it up
     resetPin = HIGH;
@@ -119,87 +119,87 @@ size_t Nrf51822::getNBytesSent() const
     return (spi0TcrReg >> 16);
 }
 
-bool Nrf51822::setMode(Modes newMode)
-{
-    SpiFrame frame = {DataId::CONFIG, static_cast<FieldId>(newMode), 0, Operation::WRITE};
-    write(reinterpret_cast<char*>(&frame), sizeof(frame));
-    return true;
-}
+// bool Nrf51822::setMode(Modes newMode)
+// {
+//     SpiFrame frame = {DataId::CONFIG, static_cast<FieldId>(newMode), Operation::WRITE};
+//     write(reinterpret_cast<char*>(&frame), sizeof(frame));
+//     return true;
+// }
 
-bool Nrf51822::addDiscoveryService(ServiceDescriptor& discoveryService)
-{
-    SpiFrame frame = {DataId::CONFIG,
-                      FieldId::ADD_DISCOVERY_SERVICE,
-                      0,
-                      Operation::WRITE};
-    std::memcpy(frame.data, discoveryService.data(), sizeof(ServiceDescriptor));
-    write(reinterpret_cast<char*>(&frame), sizeof(frame));
-    return true;
-}
+// bool Nrf51822::addDiscoveryService(ServiceDescriptor& discoveryService)
+// {
+//     SpiFrame frame = {DataId::CONFIG,
+//                       FieldId::ADD_DISCOVERY_SERVICE,
+//                     //   0,
+//                       Operation::WRITE};
+//     std::memcpy(frame.data, discoveryService.data(), sizeof(ServiceDescriptor));
+//     write(reinterpret_cast<char*>(&frame), sizeof(frame));
+//     return true;
+// }
 
-bool Nrf51822::addServerCharacteristic(CharcteristicDescriptor& characteristic)
-{
-    SpiFrame frame = {DataId::CONFIG,
-                      FieldId::ADD_SERVER_CHARACTERISTIC,
-                      0,
-                      Operation::WRITE};
-    std::memcpy(frame.data, characteristic.data(), sizeof(CharcteristicDescriptor));
-    write(reinterpret_cast<char*>(&frame), sizeof(frame));
-    return true;
-}
+// bool Nrf51822::addServerCharacteristic(CharcteristicDescriptor& characteristic)
+// {
+//     SpiFrame frame = {DataId::CONFIG,
+//                       FieldId::ADD_SERVER_CHARACTERISTIC,
+//                     //   0,
+//                       Operation::WRITE};
+//     std::memcpy(frame.data, characteristic.data(), sizeof(CharcteristicDescriptor));
+//     write(reinterpret_cast<char*>(&frame), sizeof(frame));
+//     return true;
+// }
 
-bool Nrf51822::addServerName(const ServerName& name)
-{
-    SpiFrame frame = {DataId::CONFIG,
-                      FieldId::CONFIG_SERVER_NAME,
-                      0,
-                      Operation::WRITE};
-    std::memcpy(frame.data, name.c_str(), wunderbar::limits::SERVER_NAME_MAX_LEN);
-    write(reinterpret_cast<char*>(&frame), sizeof(frame));
-    return true;
-}
+// bool Nrf51822::addServerName(const ServerName& name)
+// {
+//     SpiFrame frame = {DataId::CONFIG,
+//                       FieldId::CONFIG_SERVER_NAME,
+//                     //   0,
+//                       Operation::WRITE};
+//     std::memcpy(frame.data, name.c_str(), wunderbar::limits::SERVER_NAME_MAX_LEN);
+//     write(reinterpret_cast<char*>(&frame), sizeof(frame));
+//     return true;
+// }
 
-bool Nrf51822::addServerPass(uint8_t client, const PassKey& pass)
-{
-    SpiFrame frame = {DataId::CONFIG,
-                      FieldId::CONFIG_SERVER_PASS,
-                      client,
-                      Operation::WRITE};
-    std::memcpy(frame.data, pass.data(), wunderbar::limits::SERVER_PASS_MAX_LEN);
-    write(reinterpret_cast<char*>(&frame), sizeof(frame));
-    return true;
-}
+// bool Nrf51822::addServerPass(uint8_t client, const PassKey& pass)
+// {
+//     SpiFrame frame = {DataId::CONFIG,
+//                       FieldId::CONFIG_SERVER_PASS,
+//                     //   client,
+//                       Operation::WRITE};
+//     std::memcpy(frame.data, pass.data(), wunderbar::limits::SERVER_PASS_MAX_LEN);
+//     write(reinterpret_cast<char*>(&frame), sizeof(frame));
+//     return true;
+// }
 
-bool Nrf51822::addServerUUID(uint8_t client, const ServerUUID& uuid)
-{
-    SpiFrame frame = {DataId::CONFIG,
-                      FieldId::CONFIG_SERVER_UUID,
-                      client,
-                      Operation::WRITE};
-    std::memcpy(frame.data, uuid.data(), wunderbar::limits::SERVER_UUID_MAX_LEN);
-    write(reinterpret_cast<char*>(&frame), sizeof(frame));
-    return true;
-}
+// bool Nrf51822::addServerUUID(uint8_t client, const ServerUUID& uuid)
+// {
+//     SpiFrame frame = {DataId::CONFIG,
+//                       FieldId::CONFIG_SERVER_UUID,
+//                     //   client,
+//                       Operation::WRITE};
+//     std::memcpy(frame.data, uuid.data(), wunderbar::limits::SERVER_UUID_MAX_LEN);
+//     write(reinterpret_cast<char*>(&frame), sizeof(frame));
+//     return true;
+// }
 
-bool Nrf51822::readCharacteristic(uint8_t client, const CharcteristicDescriptor& uuid)
-{
-    SpiFrame frame = {static_cast<DataId>(client),
-                      FieldId::READ_CHARACTERISTIC,
-                      0,
-                      Operation::READ};
-    std::memcpy(frame.data, uuid.data(), sizeof(uuid.uuid));
-    write(reinterpret_cast<char*>(&frame), sizeof(frame));
-    return true;
-}
+// bool Nrf51822::readCharacteristic(uint8_t client, const CharcteristicDescriptor& uuid)
+// {
+//     SpiFrame frame = {static_cast<DataId>(client),
+//                       FieldId::READ_CHARACTERISTIC,
+//                     //   0,
+//                       Operation::READ};
+//     std::memcpy(frame.data, uuid.data(), sizeof(uuid.uuid));
+//     write(reinterpret_cast<char*>(&frame), sizeof(frame));
+//     return true;
+// }
 
-bool Nrf51822::writeCharacteristic(uint8_t client, const CharcteristicDescriptor& uuid, const uint8_t* data, size_t len)
-{
-    SpiFrame frame = {static_cast<DataId>(client),
-                      FieldId::WRITE_CHARACTERISTIC,
-                      0,
-                      Operation::WRITE};
-    std::memcpy(frame.data, uuid.data(), sizeof(uuid.uuid));
-    write(reinterpret_cast<char*>(&frame), sizeof(frame));
-    return true;
-}
+// bool Nrf51822::writeCharacteristic(uint8_t client, const CharcteristicDescriptor& uuid, const uint8_t* data, size_t len)
+// {
+//     SpiFrame frame = {static_cast<DataId>(client),
+//                       FieldId::WRITE_CHARACTERISTIC,
+//                     //   0,
+//                       Operation::WRITE};
+//     std::memcpy(frame.data, uuid.data(), sizeof(uuid.uuid));
+//     write(reinterpret_cast<char*>(&frame), sizeof(frame));
+//     return true;
+// }
 
