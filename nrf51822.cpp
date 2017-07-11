@@ -3,6 +3,7 @@
 #include "spicscrit.h"
 #include "wunderbarble.h"
 #include "mbed_wait_api.h"
+#include "DigitalInOut.h"
 #include "Callback.h"
 
 const uint32_t LOW  = 0;
@@ -33,15 +34,19 @@ Nrf51822::Nrf51822(PinName _mosi,
 
 void Nrf51822::reset()
 {
-    // take control of reset pin
-    DigitalOut resetPin(NRF_NRESET);
+    // take control of reset pin and put it up
+    mbed::DigitalInOut resetPin(NRF_NRESET, PinDirection::PIN_OUTPUT, PinMode::PullUp, HIGH);
+    
+    // hold it to stabilise the level
+    wait_us(NRF_RESET_TIME_US*2);
+
     // pull reset pin down
     resetPin = LOW;
 
     // hold it down
     wait_us(NRF_RESET_TIME_US*2);
 
-    // pull it up
+    // pull it up again
     resetPin = HIGH;
 }
 
@@ -83,13 +88,11 @@ void Nrf51822::write(const char* txData, size_t len)
 {
     {
         SpiCsCrit scrit(ssel);
-        // DigitalOut SSEL(NRF_SSEL, LOW);
 
         for (auto byte = 0U; byte < len; ++byte)
         {
             spiDriver.write(txData[byte]);
         }
-        // SSEL = HIGH;
     }
 }
 
