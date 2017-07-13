@@ -10,7 +10,6 @@
 using SpiSlaveReadReqCb = mbed::Callback<void()>;
 using mbed::SPI;
 using mbed::InterruptIn;
-using mbed::InterruptIn;
 using rtos::Thread;
 
 const size_t SPI_PACKET_DATA_SIZE = 20;
@@ -48,12 +47,12 @@ enum class FieldId : uint8_t
     CHAR_FIRMWARE_REVISION          = 0xB,
     SENSOR_STATUS                   = 0xC,
 
-    CONFIG_HTU_PASS                 = 0x0,
-    CONFIG_GYRO_PASS                = 0x1,
-    CONFIG_LIGHT_PASS               = 0x2,
-    CONFIG_SOUND_PASS               = 0x3,
-    CONFIG_BRIDGE_PASS              = 0x4,
-    CONFIG_IR_PASS                  = 0x5,
+    CONFIG_HTU_PASS                 = static_cast<uint8_t>(DataId::DEV_HTU),
+    CONFIG_GYRO_PASS                = static_cast<uint8_t>(DataId::DEV_GYRO),
+    CONFIG_LIGHT_PASS               = static_cast<uint8_t>(DataId::DEV_LIGHT),
+    CONFIG_SOUND_PASS               = static_cast<uint8_t>(DataId::DEV_SOUND),
+    CONFIG_BRIDGE_PASS              = static_cast<uint8_t>(DataId::DEV_BRIDGE),
+    CONFIG_IR_PASS                  = static_cast<uint8_t>(DataId::DEV_IR),
     CONFIG_WIFI_SSID                = 0x6,
     CONFIG_WIFI_PASS                = 0x7,
     CONFIG_MASTER_MODULE_ID         = 0x8,
@@ -67,41 +66,26 @@ enum class FieldId : uint8_t
     RUN                             = 0x10,
     CONFIG_ONBOARD_DONE             = 0x11,
     KILL                            = 0x12,
-    // ADD_DISCOVERY_SERVICE           = 17,
-    // ADD_SERVER_CHARACTERISTIC       = 18,
-    // CONFIG_SERVER_NAME              = 19,
-    // CONFIG_SERVER_PASS              = 20,
-    // CONFIG_SERVER_UUID              = 21,
-    // CONTROL_START_DISCOVERY         = 22,
-    // RUN_WRITE_RSP_OK                = 23,
-    // CONTROL_DISCOVERY_COMPLETE      = 24,
-    // CONTROL_CHARACTERISITC_DONE     = 25,
-    // READ_CHARACTERISTIC             = 26,
-    // WRITE_CHARACTERISTIC            = 27,
-
-
-    // CONFIG_DONE_MASK                = 0x20,
-    // CONFIG_HTU_DONE                 = CONFIG_DONE_MASK | static_cast<uint8_t>(DataId::DEV_HTU),
-    // CONFIG_GYRO_DONE                = CONFIG_DONE_MASK | static_cast<uint8_t>(DataId::DEV_GYRO),
-    // CONFIG_LIGHT_DONE               = CONFIG_DONE_MASK | static_cast<uint8_t>(DataId::DEV_LIGHT),
-    // CONFIG_SOUND_DONE               = CONFIG_DONE_MASK | static_cast<uint8_t>(DataId::DEV_SOUND),
-    // CONFIG_BRIDGE_DONE              = CONFIG_DONE_MASK | static_cast<uint8_t>(DataId::DEV_BRIDGE),
-    // CONFIG_IR_DONE                  = CONFIG_DONE_MASK | static_cast<uint8_t>(DataId::DEV_IR),
 
     RUN_ERROR                       = 0xFF
 };
 
 enum class Operation : uint8_t
 {
-    WRITE  = 0,
-    READ   = 1
+    WRITE = 0x0,
+    READ  = 0x1,
+
+    // It was used in this manner for FIELD_ID_SENSOR_STATUS, so let's have it explicitly
+    CONNECTION_OPENED = 0x0,
+    CONNECTION_CLOSED = 0x1,
+
+    NOT_USED = 0xFF
 };
 
 struct SpiFrame
 {
     DataId      dataId;
     FieldId     fieldId;
-    // uint8_t     clientIdx;
     Operation   operation;
     uint8_t     data[SPI_PACKET_DATA_SIZE];
 } __attribute__((packed));
@@ -109,8 +93,7 @@ struct SpiFrame
 enum class Modes : uint8_t
 {
     CONFIG = static_cast<uint8_t>(FieldId::CONFIG_START),
-    // DISCOVERY = static_cast<uint8_t>(FieldId::CONTROL_START_DISCOVERY),
-    RUN = static_cast<uint8_t>(FieldId::RUN)
+    RUN    = static_cast<uint8_t>(FieldId::RUN)
 };
 
 class Nrf51822
@@ -119,30 +102,28 @@ public:
     Nrf51822(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq);
     // do HW chip reset
     void reset();
+    // do SW reset via kill signal over SPI
+    void resetNrfSoftware();
     // config communication settings, sets callback to receive data from nrf when requesting
     void config(SpiSlaveReadReqCb cb);
     // sets/changes callback to receive data from nrf when requesting
     void setRecvReadyCb(SpiSlaveReadReqCb cb);
 
-    void write(const char* txData, size_t len);
+    // sending and receiving data
     void read(char* rxData, size_t len);
+    void write(const char* txData, size_t len);
+    void readWrite(char* rxData, const char* txData, size_t len);
 
     // ble logic
-    // bool setMode(Modes newMode);
-    // bool addDiscoveryService(ServiceDescriptor& discoveryService);
-    // bool addServerCharacteristic(CharcteristicDescriptor& characteristic);
-    // bool addServerName(const ServerName& name);
-    // bool addServerPass(uint8_t client, const PassKey& pass);
-    // bool addServerUUID(uint8_t client, const ServerUUID& uuid);
-    // bool writeCharacteristic(uint8_t client, const CharcteristicDescriptor& uuid, const uint8_t* data, size_t len);
-    // bool readCharacteristic(uint8_t client, const CharcteristicDescriptor& uuid);
+    void setMode(Modes newMode);
+    void configServerPass(DataId client, const PassKey& pass);
+    void readCharacteristic(const DataId client, FieldId bleChar, uint8_t* data);
+    void writeCharacteristic(DataId client, FieldId bleChar, const uint8_t* data, size_t len);
 
-    void readWrite(char* rxData, const char* txData, size_t len);
 private:
+    // callback handling
     void recvDataIrqCb();
     void recvDataHandler();
-    // sending and receiving data
-
 
     // get total number of sent bytes (wraps arround)
     size_t getNBytesSent() const;
@@ -154,7 +135,5 @@ private:
     Thread       recvDataThread;
 
     SpiSlaveReadReqCb recvDataExtCb;
-
-
 };
 
