@@ -3,44 +3,56 @@
 #include "wunderbarble.h"
 #include  <algorithm>
 
+#include "Stream.h"
 
 const int32_t SIGNAL_FW_VERSION_READ = 0x1;
 const int32_t SIGNAL_ONBOARDING_DONE = 0x2;
+const int32_t SIGNAL_CONFIG_ACK      = 0x4;
 
-
-Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq)
+Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq, mbed::Stream* _log)
     : nrfDriver(_mosi, _miso, _sclk, _ssel, _extIrq),
       configurator(osPriorityNormal, 0x400),
-      configOk(false),
-      serversToBeOnboarded(),
-      serversOnboarded()
+      configOk(true),
+      serverList(),
+      serversOnboarded(),
+      log(_log)
 {
-    // nrfDriver.reset();
     nrfDriver.config(mbed::callback(this, &Nrf51822Interface::spiCallback));
+    nrfDriver.reset();
 }
 
 Nrf51822Interface::~Nrf51822Interface()
 {
 }
 
-bool Nrf51822Interface::registerServer(BleServerConfig& config, BleServerCallback inboundCallback)
+bool Nrf51822Interface::registerServer(BleServerConfig& config, BleServerCallback serverCallback)
 {
     bool success = false;
 
+    log->printf("Registering server %s... ", config.name.c_str());
+
     if(servers.size() < wunderbar::limits::MAX_SERVERS)
     {
-        auto existingServer = servers.find(ServerNamesToDataId.at(config.name));
+        auto serverId = ServerNamesToDataId.at(config.name);
+        auto existingServer = servers.find(serverId);
+        
         if(existingServer == servers.end())
         {
-            if(servers.size() < wunderbar::limits::MAX_SERVERS)
-            {
-                // std::pair<DataId, ServerInfo> para(static_cast<DataId>(),)
-                servers.emplace(static_cast<DataId>(servers.size()), ServerInfo(config, inboundCallback));
-                serversToBeOnboarded.emplace_back(ServerNamesToDataId.at(config.name));
-                success = true;
-            }
+            servers.emplace(ServerNamesToDataId.at(config.name), ServerInfo(config, serverCallback));
+            serverList.emplace_back(serverId);
+            success = true;
+            log->printf("ok!\n");
+        }
+        else
+        {
+            log->printf("failed, server name already on the list!\n");
         }
     }
+    else
+    {
+        log->printf("failed, limit reached!\n");
+    }
+
 
     return success;
 }
@@ -60,34 +72,42 @@ bool Nrf51822Interface::configure()
 void Nrf51822Interface::doConfig()
 {
     // have a sorted list for later comparison
-    serversToBeOnboarded.sort();
+    serverList.sort();
 
-    // dummy read for initial FW version packet from NRF
-    spiCallback();
+    // perform HW reset on NRF module
+    nrfDriver.reset();
+
+    // wait for callback after reset
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
 
     // configure passkeys for all servers 
+    log->printf("Sending passwords to NRF...\n");
     for(auto& server : servers)
     {
         auto& config = std::get<ServerInfo>(server).serverConfig;
         nrfDriver.configServerPass(ServerNamesToDataId.at(config->name), config->passKey);
+
+        // rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
+        log->printf("...%s done!\n", config->name.c_str());
     }
+
     // request config to perform sensor onboarding
+    log->printf("Commencing sensors' onboarding...\n");
     nrfDriver.setMode(Modes::CONFIG);
 
     // wait till onboarding is done
     rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
 
     // to confiugure new services NRF has to be restarted
+    log->printf("Reseting NRF...\n");
     nrfDriver.resetNrfSoftware();
 
     // wait for callback after restart
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
 
     // move to run mode
+    log->printf("Moving to run mode...\n");
     nrfDriver.setMode(Modes::RUN);
-
-    configOk = false;
 }
 
 bool Nrf51822Interface::storeConfig()
@@ -114,17 +134,18 @@ bool Nrf51822Interface::writeCharacteristic(const BleServerConfig& server,
     return true;
 }
 
-void Nrf51822Interface::handleDeviceDiscovery(SpiFrame& inboundFrame)
+void Nrf51822Interface::handleOnboarding(SpiFrame& inboundFrame)
 {
     auto serverId = inboundFrame.dataId;
-    auto serverEntry = std::find(serversToBeOnboarded.begin(), serversToBeOnboarded.end(), inboundFrame.dataId);
+    auto serverEntry = std::find(serverList.begin(), serverList.end(), inboundFrame.dataId);
 
-    if(serverEntry != serversToBeOnboarded.end())
-    {   
-        if (FieldId::CONFIG_COMPLETE == inboundFrame.fieldId ||
-            FieldId::SENSOR_STATUS   == inboundFrame.fieldId)
+    if(serverEntry != serverList.end())
+    {
+
+        if (FieldId::CONFIG_ONBOARD_DONE == inboundFrame.fieldId ||
+            FieldId::SENSOR_STATUS       == inboundFrame.fieldId)
         {
-            // mark a event received for a given server; orded is constant so sorting not needed
+            // mark a event received for a given server; orded is constant
             servers[serverId].onboardInfo.onboardSeq.push_back(inboundFrame.fieldId);
 
             // if all events arrived, server is considered onboarded
@@ -145,13 +166,16 @@ void Nrf51822Interface::serverDiscoveryComlpete(BleServerConfig& config)
     serversOnboarded.push_back(server);
     serversOnboarded.sort();
 
-    if (serversToBeOnboarded == serversOnboarded)
+    log->printf("Server discovery confirmed by %s \n", config.name.c_str());
+
+    if (serverList == serversOnboarded)
     {
+        log->printf("All servers ready! \n", config.name);
         configurator.signal_set(SIGNAL_ONBOARDING_DONE);
     }
 }
 
-BleEvent fieldId2BleEvent(FieldId fId, Operation op)
+BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
 {
     BleEvent event = BleEvent::NONE;
     switch(fId)
@@ -163,7 +187,7 @@ BleEvent fieldId2BleEvent(FieldId fId, Operation op)
             }
             else if (Operation::CONNECTION_CLOSED == op)
             {
-                event =BleEvent:: CONNECTION_CLOSED;
+                event = BleEvent:: CONNECTION_CLOSED;
             } 
             break;
 
@@ -185,6 +209,7 @@ void Nrf51822Interface::spiCallback()
 {
     SpiFrame inbound;
     nrfDriver.read(reinterpret_cast<char*>(&inbound), sizeof(inbound));
+    log->printf("SPI cb, dataId 0x%X, fieldId 0x%X, op 0x%X \n", inbound.dataId, inbound.fieldId, inbound.operation);
 
     switch(inbound.dataId)
     {
@@ -194,31 +219,50 @@ void Nrf51822Interface::spiCallback()
         case DataId::DEV_SOUND: // intentional fall-through
         case DataId::DEV_BRIDGE: // intentional fall-through
         case DataId::DEV_IR:
-            {
-                const bool onboardingOngoing = (false == servers[inbound.dataId].onboardInfo.onboarded);
+            {   
+                // parse data only if server is on the list
+                auto serverEntry = std::find(serverList.begin(), serverList.end(), inbound.dataId);
 
-                if(onboardingOngoing)
-                {   
-                    handleDeviceDiscovery(inbound);
-                }
-                else
+                if(serverEntry != serverList.end())
                 {
-                    servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
-                                                                        inbound.data,
-                                                                        sizeof(inbound.data));
+                    if(servers[inbound.dataId].onboardInfo.onboarded)
+                    {   
+                        servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
+                                                                            inbound.data,
+                                                                            sizeof(inbound.data));
+                    }
+                    else
+                    {
+                        handleOnboarding(inbound);
+                    }
                 }
             }
             break;
+
         case DataId::CONFIG:
+
+            if (FieldId::CONFIG_ACK == inbound.fieldId)
+            {
+                configurator.signal_set(SIGNAL_CONFIG_ACK);
+            } 
+            else if (FieldId::CONFIG_ERROR == inbound.fieldId)
+            {
+                log->printf("Fatal error, configuration rejected!");
+                configOk = false;
+                configurator.terminate();
+            }
             break;
+
         case DataId::ERROR:
             break;
+
         case DataId::DEV_CENTRAL:
             if(FieldId::CHAR_FIRMWARE_REVISION == inbound.fieldId)
             {
                 configurator.signal_set(SIGNAL_FW_VERSION_READ);
             }
             break;
+
         default:
             break;
     }

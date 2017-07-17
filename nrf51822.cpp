@@ -26,10 +26,6 @@ Nrf51822::Nrf51822(PinName _mosi,
       recvDataIrq(_extIrq),
       recvDataThread()
 {
-    if(NC == ssel)
-    {
-        DigitalOut SSEL(NRF_SSEL, HIGH);
-    }
 }
 
 void Nrf51822::reset()

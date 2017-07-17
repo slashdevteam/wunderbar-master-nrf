@@ -8,6 +8,11 @@
 #include <map>
 #include <list>
 
+namespace mbed
+{
+    class Stream;
+}
+
 using OnboardSequence  = std::list<FieldId>;
 using ServerList       = std::list<DataId>;
 
@@ -39,10 +44,6 @@ struct ServerInfo {
 
 using Servers = std::unordered_map<DataId, ServerInfo>;
 
-// using ServersToOnboard = std::list<std::string>;
-// using ServerInfo       = std::tuple<BleServerCallback, BleServerConfig*, bool>;
-// using SearchServers = std::unordered_map<ServerName, std::list<ServerInfo>>;
-
 const ServerName WunderbarSensorNames[] = {
     "WunderbarHTU",
     "WunderbarGYRO",
@@ -52,7 +53,7 @@ const ServerName WunderbarSensorNames[] = {
     "WunderbarIR"
 };
 
-const std::map<ServerName, DataId> ServerNamesToDataId = {
+const std::unordered_map<ServerName, DataId> ServerNamesToDataId = {
     {WunderbarSensorNames[0], DataId::DEV_HTU},
     {WunderbarSensorNames[1], DataId::DEV_GYRO},
     {WunderbarSensorNames[2], DataId::DEV_LIGHT},
@@ -64,11 +65,11 @@ const std::map<ServerName, DataId> ServerNamesToDataId = {
 class Nrf51822Interface : public IBleGateway
 {
 public:
-    Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq);
+    Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq, mbed::Stream* _log);
     virtual ~Nrf51822Interface();
 
     // IBleGateway interface
-    virtual bool registerServer(BleServerConfig& config, BleServerCallback incomingCallback) override;
+    virtual bool registerServer(BleServerConfig& config, BleServerCallback serverCallback) override;
     virtual void serverDiscoveryComlpete(BleServerConfig& config) override;
     virtual bool sendToServer(const BleServerConfig& config, BleServerCallback doneCallback) override;
     virtual bool configure() override;
@@ -82,19 +83,20 @@ public:
 private:
     void spiCallback();
     void doConfig();
-    void handleDeviceDiscovery(SpiFrame&);
+    void handleOnboarding(SpiFrame&);
 
 private:
     Nrf51822 nrfDriver;
     rtos::Thread configurator;
     volatile bool configOk;
 
-    const OnboardSequence reqConfigFields = {FieldId::CONFIG_ONBOARD_DONE, FieldId::SENSOR_STATUS, FieldId::SENSOR_STATUS};
+    // fields to be received from sensor being onboarded
+    const OnboardSequence reqConfigFields = {FieldId::CONFIG_ONBOARD_DONE, FieldId::SENSOR_STATUS};
     
-    // IBleGateway
-    ServerList serversToBeOnboarded;
+    ServerList serverList;
     ServerList serversOnboarded;
+    Servers    servers;
 
-    // Characteristics characteristics;
-    Servers         servers;
+    BleEvent fieldId2BleEvent(FieldId fId, Operation op);
+    mbed::Stream* log;
 };
