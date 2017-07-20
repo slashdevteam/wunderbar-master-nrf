@@ -145,6 +145,14 @@ void Nrf51822::configServerPass(DataId client, const PassKey& pass)
     write(reinterpret_cast<char*>(&frame), sizeof(frame));
 }
 
+void Nrf51822::requestPasskeyStoring()
+{
+    SpiFrame frame = {DataId::CONFIG,
+                      FieldId::CONFIG_STORE_PASSKEYS,
+                      Operation::NOT_USED};
+
+    write(reinterpret_cast<char*>(&frame), sizeof(frame));
+}
 
 void Nrf51822::readCharacteristic(const DataId client, FieldId bleChar, uint8_t* data)
 {

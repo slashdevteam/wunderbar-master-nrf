@@ -53,21 +53,19 @@ enum class FieldId : uint8_t
     CONFIG_SOUND_PASS               = static_cast<uint8_t>(DataId::DEV_SOUND),
     CONFIG_BRIDGE_PASS              = static_cast<uint8_t>(DataId::DEV_BRIDGE),
     CONFIG_IR_PASS                  = static_cast<uint8_t>(DataId::DEV_IR),
-    CONFIG_WIFI_SSID                = 0x6,
-    CONFIG_WIFI_PASS                = 0x7,
-    CONFIG_MASTER_MODULE_ID         = 0x8,
-    CONFIG_MASTER_MODULE_SEC        = 0x9,
-    CONFIG_MASTER_MODULE_URL        = 0xA,
-    CONFIG_START                    = 0xB,
-    CONFIG_COMPLETE                 = 0xC,
-    CONFIG_STOP                     = 0xD,
-    CONFIG_ACK                      = 0xE,
-    CONFIG_ERROR                    = 0xF,
-    RUN                             = 0x10,
-    CONFIG_ONBOARD_DONE             = 0x11,
-    KILL                            = 0x12,
 
-    RUN_ERROR                       = 0xFF
+    CONFIG_START                    = 0x10,
+    CONFIG_COMPLETE                 = 0x11,
+    CONFIG_STOP                     = 0x12,
+    CONFIG_ACK                      = 0x13,
+    CONFIG_ERROR                    = 0x14,
+    CONFIG_STORE_PASSKEYS           = 0x15,
+
+    RUN                             = 0x20,
+    ONBOARD_DONE                    = 0x21,
+    KILL                            = 0x22,
+
+    INVALID                         = 0xFF
 };
 
 enum class Operation : uint8_t
@@ -117,6 +115,7 @@ public:
     // ble logic
     void setMode(Modes newMode);
     void configServerPass(DataId client, const PassKey& pass);
+    void requestPasskeyStoring();
     void readCharacteristic(const DataId client, FieldId bleChar, uint8_t* data);
     void writeCharacteristic(DataId client, FieldId bleChar, const uint8_t* data, size_t len);
 

@@ -2,23 +2,24 @@
 
 #include "wunderbarble.h"
 #include  <algorithm>
-
 #include "Stream.h"
+#include "mbed.h"
 
 const int32_t SIGNAL_FW_VERSION_READ = 0x1;
 const int32_t SIGNAL_ONBOARDING_DONE = 0x2;
 const int32_t SIGNAL_CONFIG_ACK      = 0x4;
+const int32_t SIGNAL_CONFIG_COMPLETE = 0x8;
 
 Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq, mbed::Stream* _log)
     : nrfDriver(_mosi, _miso, _sclk, _ssel, _extIrq),
       configurator(osPriorityNormal, 0x400),
       configOk(true),
+      onboardSensors(false),
       serverList(),
       serversOnboarded(),
       log(_log)
 {
     nrfDriver.config(mbed::callback(this, &Nrf51822Interface::spiCallback));
-    nrfDriver.reset();
 }
 
 Nrf51822Interface::~Nrf51822Interface()
@@ -53,13 +54,17 @@ bool Nrf51822Interface::registerServer(BleServerConfig& config, BleServerCallbac
         log->printf("failed, limit reached!\n");
     }
 
-
     return success;
 }
 
 bool Nrf51822Interface::sendToServer(const BleServerConfig& config, BleServerCallback doneCallback)
 {
     return false;
+}
+
+void Nrf51822Interface::setSensorOnboardNeeded()
+{
+    onboardSensors = true;
 }
 
 bool Nrf51822Interface::configure()
@@ -71,39 +76,41 @@ bool Nrf51822Interface::configure()
 
 void Nrf51822Interface::doConfig()
 {
-    // have a sorted list for later comparison
-    serverList.sort();
-
     // perform HW reset on NRF module
     nrfDriver.reset();
 
     // wait for callback after reset
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
 
-    // configure passkeys for all servers 
-    log->printf("Sending passwords to NRF...\n");
-    for(auto& server : servers)
+    // if requested to use new passkeys for all servers 
+    if (onboardSensors)
     {
-        auto& config = std::get<ServerInfo>(server).serverConfig;
-        nrfDriver.configServerPass(ServerNamesToDataId.at(config->name), config->passKey);
+        nrfDriver.requestPasskeyStoring();
+        rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
 
-        // rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
-        log->printf("...%s done!\n", config->name.c_str());
+        log->printf("Sending passwords to NRF...\n");
+        for(auto& server : servers)
+        {
+            auto& config = std::get<ServerInfo>(server).serverConfig;
+            nrfDriver.configServerPass(ServerNamesToDataId.at(config->name), config->passKey);
+            rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
+        }
+
+        // request config to perform sensor onboarding
+        log->printf("Commencing sensors' onboarding...\n");
+        nrfDriver.setMode(Modes::CONFIG);
+
+        // wait till onboarding is done and all data is stored in the NRF's NVRAM
+        rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
+        rtos::Thread::signal_wait(SIGNAL_CONFIG_COMPLETE);
+
+        // to confiugure new services NRF has to be restarted
+        log->printf("Reseting NRF...\n");
+        nrfDriver.resetNrfSoftware();
+
+        // wait for callback after restart
+        rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
     }
-
-    // request config to perform sensor onboarding
-    log->printf("Commencing sensors' onboarding...\n");
-    nrfDriver.setMode(Modes::CONFIG);
-
-    // wait till onboarding is done
-    rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
-
-    // to confiugure new services NRF has to be restarted
-    log->printf("Reseting NRF...\n");
-    nrfDriver.resetNrfSoftware();
-
-    // wait for callback after restart
-    rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
 
     // move to run mode
     log->printf("Moving to run mode...\n");
@@ -142,7 +149,7 @@ void Nrf51822Interface::handleOnboarding(SpiFrame& inboundFrame)
     if(serverEntry != serverList.end())
     {
 
-        if (FieldId::CONFIG_ONBOARD_DONE == inboundFrame.fieldId ||
+        if (FieldId::ONBOARD_DONE == inboundFrame.fieldId ||
             FieldId::SENSOR_STATUS       == inboundFrame.fieldId)
         {
             // mark a event received for a given server; orded is constant
@@ -150,7 +157,8 @@ void Nrf51822Interface::handleOnboarding(SpiFrame& inboundFrame)
 
             // if all events arrived, server is considered onboarded
             if (reqConfigFields == servers[serverId].onboardInfo.onboardSeq)
-            {
+            {   
+                log->printf("Server %s onboarded, waiting for confirmation...\n", servers[serverId].serverConfig->name.c_str());
                 servers[serverId].bleServerCb(BleEvent::DISCOVERY_COMPLETE, inboundFrame.data, sizeof(inboundFrame.data));
             }
         }
@@ -166,7 +174,7 @@ void Nrf51822Interface::serverDiscoveryComlpete(BleServerConfig& config)
     serversOnboarded.push_back(server);
     serversOnboarded.sort();
 
-    log->printf("Server discovery confirmed by %s \n", config.name.c_str());
+    log->printf("...server discovery confirmed by %s!\n", config.name.c_str());
 
     if (serverList == serversOnboarded)
     {
@@ -244,6 +252,10 @@ void Nrf51822Interface::spiCallback()
             if (FieldId::CONFIG_ACK == inbound.fieldId)
             {
                 configurator.signal_set(SIGNAL_CONFIG_ACK);
+            } 
+            else if (FieldId::CONFIG_COMPLETE == inbound.fieldId)
+            {
+                configurator.signal_set(SIGNAL_CONFIG_COMPLETE);
             } 
             else if (FieldId::CONFIG_ERROR == inbound.fieldId)
             {

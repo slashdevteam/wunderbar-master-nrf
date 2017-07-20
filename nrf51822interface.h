@@ -80,6 +80,8 @@ public:
                                      const uint8_t* data,
                                      const size_t len) override;
 
+    void setSensorOnboardNeeded();
+
 private:
     void spiCallback();
     void doConfig();
@@ -89,9 +91,10 @@ private:
     Nrf51822 nrfDriver;
     rtos::Thread configurator;
     volatile bool configOk;
+    volatile bool onboardSensors;
 
     // fields to be received from sensor being onboarded
-    const OnboardSequence reqConfigFields = {FieldId::CONFIG_ONBOARD_DONE, FieldId::SENSOR_STATUS};
+    const OnboardSequence reqConfigFields = {FieldId::ONBOARD_DONE, FieldId::SENSOR_STATUS};
     
     ServerList serverList;
     ServerList serversOnboarded;
