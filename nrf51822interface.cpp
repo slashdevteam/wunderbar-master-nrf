@@ -14,11 +14,11 @@ Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk
     : nrfDriver(_mosi, _miso, _sclk, _ssel, _extIrq),
       configurator(osPriorityNormal, 0x400),
       configOk(true),
-      onboardSensors(false),
       serverList(),
       serversOnboarded(),
       log(_log)
 {
+    nrfDriver.reset();
     nrfDriver.config(mbed::callback(this, &Nrf51822Interface::spiCallback));
 }
 
@@ -62,59 +62,52 @@ bool Nrf51822Interface::sendToServer(const BleServerConfig& config, BleServerCal
     return false;
 }
 
-void Nrf51822Interface::setSensorOnboardNeeded()
-{
-    onboardSensors = true;
-}
-
 bool Nrf51822Interface::configure()
 {
-    configurator.start(mbed::callback(this, &Nrf51822Interface::doConfig));
+    // Have sorted list of all registered servers for comparison during onboarding
+    serverList.sort();
+
+    // perform onboarding
+    configurator.start(mbed::callback(this, &Nrf51822Interface::onboardSensors));
     configurator.join();
     return configOk;
 }
 
-void Nrf51822Interface::doConfig()
+void Nrf51822Interface::startOperation()
 {
-    // perform HW reset on NRF module
-    nrfDriver.reset();
-
-    // wait for callback after reset
-    rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
-
-    // if requested to use new passkeys for all servers 
-    if (onboardSensors)
-    {
-        nrfDriver.requestPasskeyStoring();
-        rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
-
-        log->printf("Sending passwords to NRF...\n");
-        for(auto& server : servers)
-        {
-            auto& config = std::get<ServerInfo>(server).serverConfig;
-            nrfDriver.configServerPass(ServerNamesToDataId.at(config->name), config->passKey);
-            rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
-        }
-
-        // request config to perform sensor onboarding
-        log->printf("Commencing sensors' onboarding...\n");
-        nrfDriver.setMode(Modes::CONFIG);
-
-        // wait till onboarding is done and all data is stored in the NRF's NVRAM
-        rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
-        rtos::Thread::signal_wait(SIGNAL_CONFIG_COMPLETE);
-
-        // to confiugure new services NRF has to be restarted
-        log->printf("Reseting NRF...\n");
-        nrfDriver.resetNrfSoftware();
-
-        // wait for callback after restart
-        rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
-    }
-
     // move to run mode
     log->printf("Moving to run mode...\n");
     nrfDriver.setMode(Modes::RUN);
+}
+
+void Nrf51822Interface::onboardSensors()
+{
+    //use new passkeys for all servers 
+    nrfDriver.requestPasskeyStoring();
+    rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
+
+    log->printf("Sending passwords to NRF...\n");
+    for(auto& server : servers)
+    {
+        auto& config = std::get<ServerInfo>(server).serverConfig;
+        nrfDriver.configServerPass(ServerNamesToDataId.at(config->name), config->passKey.data());
+        rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
+    }
+
+    // request config mode from NRF to perform sensor onboarding
+    log->printf("Commencing sensors' onboarding...\n");
+    nrfDriver.setMode(Modes::CONFIG);
+
+    // wait till onboarding is done and all data is stored in the NRF's NVRAM
+    rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
+    rtos::Thread::signal_wait(SIGNAL_CONFIG_COMPLETE);
+
+    // to confiugure new services NRF has to be restarted
+    log->printf("Reseting NRF...\n");
+    nrfDriver.resetNrfSoftware();
+
+    // wait for callback after restart
+    rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
 }
 
 bool Nrf51822Interface::storeConfig()
@@ -122,7 +115,7 @@ bool Nrf51822Interface::storeConfig()
     return false;
 }
 
-bool Nrf51822Interface::readCharacteristic(const BleServerConfig& server, const CharcteristicDescriptor& characteristic)
+bool Nrf51822Interface::readCharacteristic(const BleServerConfig& server, uint32_t bleCharUuid)
 {
 
     //TODO translate char and return?
@@ -132,7 +125,7 @@ bool Nrf51822Interface::readCharacteristic(const BleServerConfig& server, const 
 }
 
 bool Nrf51822Interface::writeCharacteristic(const BleServerConfig& server,
-                                     const CharcteristicDescriptor& characteristic,
+                                     uint32_t bleCharUuid,
                                      const uint8_t* data,
                                      const size_t len)
 {
@@ -149,8 +142,8 @@ void Nrf51822Interface::handleOnboarding(SpiFrame& inboundFrame)
     if(serverEntry != serverList.end())
     {
 
-        if (FieldId::ONBOARD_DONE == inboundFrame.fieldId ||
-            FieldId::SENSOR_STATUS       == inboundFrame.fieldId)
+        if (FieldId::ONBOARD_DONE  == inboundFrame.fieldId ||
+            FieldId::SENSOR_STATUS == inboundFrame.fieldId)
         {
             // mark a event received for a given server; orded is constant
             servers[serverId].onboardInfo.onboardSeq.push_back(inboundFrame.fieldId);

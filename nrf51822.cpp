@@ -135,13 +135,13 @@ void Nrf51822::resetNrfSoftware()
     write(reinterpret_cast<char*>(&frame), sizeof(frame));
 }
 
-void Nrf51822::configServerPass(DataId client, const PassKey& pass)
+void Nrf51822::configServerPass(DataId client, uint8_t* data)
 {
     SpiFrame frame = {DataId::CONFIG,
                       static_cast<FieldId>(client),
                       Operation::NOT_USED};
 
-    std::memcpy(frame.data, pass.data(), wunderbar::limits::SERVER_PASS_MAX_LEN);
+    std::memcpy(frame.data, data, wunderbar::limits::SERVER_PASS_MAX_LEN);
     write(reinterpret_cast<char*>(&frame), sizeof(frame));
 }
 

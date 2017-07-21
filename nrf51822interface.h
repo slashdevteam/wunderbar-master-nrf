@@ -73,25 +73,22 @@ public:
     virtual void serverDiscoveryComlpete(BleServerConfig& config) override;
     virtual bool sendToServer(const BleServerConfig& config, BleServerCallback doneCallback) override;
     virtual bool configure() override;
+    virtual void startOperation() override;
     virtual bool storeConfig() override;
-    virtual bool readCharacteristic(const BleServerConfig& server, const CharcteristicDescriptor& characteristic) override;
+    virtual bool readCharacteristic(const BleServerConfig& server, uint32_t bleCharUuid) override;
     virtual bool writeCharacteristic(const BleServerConfig& server,
-                                     const CharcteristicDescriptor& characteristic,
+                                     uint32_t bleCharUuid,
                                      const uint8_t* data,
                                      const size_t len) override;
-
-    void setSensorOnboardNeeded();
-
 private:
     void spiCallback();
-    void doConfig();
+    void onboardSensors();
     void handleOnboarding(SpiFrame&);
 
 private:
     Nrf51822 nrfDriver;
     rtos::Thread configurator;
     volatile bool configOk;
-    volatile bool onboardSensors;
 
     // fields to be received from sensor being onboarded
     const OnboardSequence reqConfigFields = {FieldId::ONBOARD_DONE, FieldId::SENSOR_STATUS};
