@@ -5,7 +5,6 @@
 #include "Thread.h"
 #include <unordered_map>
 #include <tuple>
-#include <map>
 #include <list>
 
 namespace mbed
