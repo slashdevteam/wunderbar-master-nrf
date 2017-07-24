@@ -7,10 +7,7 @@
 #include <tuple>
 #include <list>
 
-namespace mbed
-{
-    class Stream;
-}
+class IStdInOut;
 
 using OnboardSequence  = std::list<FieldId>;
 using ServerList       = std::list<DataId>;
@@ -64,7 +61,7 @@ const std::unordered_map<ServerName, DataId> ServerNamesToDataId = {
 class Nrf51822Interface : public IBleGateway
 {
 public:
-    Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq, mbed::Stream* _log);
+    Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq, IStdInOut* _log);
     virtual ~Nrf51822Interface();
 
     // IBleGateway interface
@@ -97,5 +94,5 @@ private:
     Servers    servers;
 
     BleEvent fieldId2BleEvent(FieldId fId, Operation op);
-    mbed::Stream* log;
+    IStdInOut* log;
 };

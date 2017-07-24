@@ -2,7 +2,7 @@
 
 #include "wunderbarble.h"
 #include  <algorithm>
-#include "Stream.h"
+#include "istdinout.h"
 #include "mbed.h"
 
 const int32_t SIGNAL_FW_VERSION_READ = 0x1;
@@ -10,7 +10,7 @@ const int32_t SIGNAL_ONBOARDING_DONE = 0x2;
 const int32_t SIGNAL_CONFIG_ACK      = 0x4;
 const int32_t SIGNAL_CONFIG_COMPLETE = 0x8;
 
-Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq, mbed::Stream* _log)
+Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq, IStdInOut* _log)
     : nrfDriver(_mosi, _miso, _sclk, _ssel, _extIrq),
       configurator(osPriorityNormal, 0x400),
       configOk(true),
@@ -18,8 +18,8 @@ Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk
       serversOnboarded(),
       log(_log)
 {
-    nrfDriver.reset();
     nrfDriver.config(mbed::callback(this, &Nrf51822Interface::spiCallback));
+    nrfDriver.reset();
 }
 
 Nrf51822Interface::~Nrf51822Interface()
@@ -29,7 +29,6 @@ Nrf51822Interface::~Nrf51822Interface()
 bool Nrf51822Interface::registerServer(BleServerConfig& config, BleServerCallback serverCallback)
 {
     bool success = false;
-
     log->printf("Registering server %s... ", config.name.c_str());
 
     if(servers.size() < wunderbar::limits::MAX_SERVERS)
@@ -70,6 +69,7 @@ bool Nrf51822Interface::configure()
     // perform onboarding
     configurator.start(mbed::callback(this, &Nrf51822Interface::onboardSensors));
     configurator.join();
+
     return configOk;
 }
 
@@ -81,7 +81,10 @@ void Nrf51822Interface::startOperation()
 }
 
 void Nrf51822Interface::onboardSensors()
-{
+{   
+    // signal should be already received from initial NRF reset
+    rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
+
     //use new passkeys for all servers 
     nrfDriver.requestPasskeyStoring();
     rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
@@ -93,6 +96,7 @@ void Nrf51822Interface::onboardSensors()
         nrfDriver.configServerPass(ServerNamesToDataId.at(config->name), config->passKey.data());
         rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
     }
+    log->printf("...done!)";
 
     // request config mode from NRF to perform sensor onboarding
     log->printf("Commencing sensors' onboarding...\n");
@@ -101,6 +105,7 @@ void Nrf51822Interface::onboardSensors()
     // wait till onboarding is done and all data is stored in the NRF's NVRAM
     rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
     rtos::Thread::signal_wait(SIGNAL_CONFIG_COMPLETE);
+    log->printf("...done!)";
 
     // to confiugure new services NRF has to be restarted
     log->printf("Reseting NRF...\n");
@@ -108,6 +113,7 @@ void Nrf51822Interface::onboardSensors()
 
     // wait for callback after restart
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
+    log->printf("...done!)";
 }
 
 bool Nrf51822Interface::storeConfig()
