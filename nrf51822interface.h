@@ -38,8 +38,6 @@ struct ServerInfo {
 
 };
 
-using Servers = std::unordered_map<DataId, ServerInfo>;
-
 const ServerName WunderbarSensorNames[] = {
     "WunderbarHTU",
     "WunderbarGYRO",
@@ -57,6 +55,8 @@ const std::unordered_map<ServerName, DataId> ServerNamesToDataId = {
     {WunderbarSensorNames[4], DataId::DEV_BRIDGE},
     {WunderbarSensorNames[5], DataId::DEV_IR}
 };
+
+using Servers = std::unordered_map<DataId, ServerInfo>;
 
 class Nrf51822Interface : public IBleGateway
 {

@@ -96,7 +96,7 @@ void Nrf51822Interface::onboardSensors()
         nrfDriver.configServerPass(ServerNamesToDataId.at(config->name), config->passKey.data());
         rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
     }
-    log->printf("...done!)";
+    log->printf("...done!");
 
     // request config mode from NRF to perform sensor onboarding
     log->printf("Commencing sensors' onboarding...\n");
@@ -105,15 +105,15 @@ void Nrf51822Interface::onboardSensors()
     // wait till onboarding is done and all data is stored in the NRF's NVRAM
     rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
     rtos::Thread::signal_wait(SIGNAL_CONFIG_COMPLETE);
-    log->printf("...done!)";
+    log->printf("...done!");
 
     // to confiugure new services NRF has to be restarted
     log->printf("Reseting NRF...\n");
-    nrfDriver.resetNrfSoftware();
+    nrfDriver.softwareReset();
 
     // wait for callback after restart
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
-    log->printf("...done!)";
+    log->printf("...done!");
 }
 
 bool Nrf51822Interface::storeConfig()

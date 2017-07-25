@@ -19,7 +19,7 @@ public:
     // do HW chip reset
     void reset();
     // do SW reset via kill signal over SPI
-    void resetNrfSoftware();
+    void softwareReset();
     // config communication settings, sets callback to receive data from nrf when requesting
     void config(SpiSlaveReadReqCb cb);
     // sets/changes callback to receive data from nrf when requesting

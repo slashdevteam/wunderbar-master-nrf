@@ -4,6 +4,7 @@
 #include "wunderbarble.h"
 #include "mbed_wait_api.h"
 #include "DigitalInOut.h"
+#include "DigitalOut.h"
 #include "Callback.h"
 
 const uint32_t LOW  = 0;
@@ -21,11 +22,12 @@ Nrf51822::Nrf51822(PinName _mosi,
                    PinName _sclk,
                    PinName _ssel,
                    PinName _extIrq)
-    : spiDriver(_mosi, _miso, _sclk, _ssel),
+    : spiDriver(_mosi, _miso, _sclk),
       ssel(_ssel),
       recvDataIrq(_extIrq),
       recvDataThread()
 {
+    DigitalOut ssel(_ssel, HIGH);
 }
 
 void Nrf51822::reset()
@@ -126,7 +128,7 @@ void Nrf51822::setMode(Modes newMode)
     write(reinterpret_cast<char*>(&frame), sizeof(frame));
 }
 
-void Nrf51822::resetNrfSoftware()
+void Nrf51822::softwareReset()
 {
     SpiFrame frame = {DataId::CONFIG,
                       FieldId::KILL, 
