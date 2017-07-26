@@ -34,8 +34,8 @@ public:
     void setMode(Modes newMode);
     void configServerPass(DataId client, uint8_t* data);
     void requestPasskeyStoring();
-    void readCharacteristic(const DataId client, FieldId bleChar, uint8_t* data);
-    void writeCharacteristic(DataId client, FieldId bleChar, const uint8_t* data, size_t len);
+    void requestCharacteristicRead(const DataId client, FieldId bleChar);
+    void requestCharacteristicWrite(DataId client, FieldId bleChar, const uint8_t* data, size_t len);
 
 private:
     // callback handling

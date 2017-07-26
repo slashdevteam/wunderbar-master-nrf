@@ -156,17 +156,16 @@ void Nrf51822::requestPasskeyStoring()
     write(reinterpret_cast<char*>(&frame), sizeof(frame));
 }
 
-void Nrf51822::readCharacteristic(const DataId client, FieldId bleChar, uint8_t* data)
+void Nrf51822::requestCharacteristicRead(const DataId client, FieldId bleChar)
 {
     SpiFrame frame = {static_cast<DataId>(client),
                       bleChar,
                       Operation::READ};
 
     read(reinterpret_cast<char*>(&frame), sizeof(frame));
-    std::memcpy(data, frame.data,  sizeof(frame));
 }
 
-void Nrf51822::writeCharacteristic(DataId client, FieldId bleChar, const uint8_t* data, size_t len)
+void Nrf51822::requestCharacteristicWrite(DataId client, FieldId bleChar, const uint8_t* data, size_t len)
 {
     SpiFrame frame = {static_cast<DataId>(client),
                       bleChar,

@@ -1,6 +1,5 @@
 #include "nrf51822interface.h"
 
-#include "wunderbarble.h"
 #include  <algorithm>
 #include "istdinout.h"
 #include "mbed.h"
@@ -121,22 +120,18 @@ bool Nrf51822Interface::storeConfig()
     return false;
 }
 
-bool Nrf51822Interface::readCharacteristic(const BleServerConfig& server, uint32_t bleCharUuid)
+bool Nrf51822Interface::requestCharacteristicRead(const BleServerConfig& server, uint16_t bleCharUuid)
 {
-
-    //TODO translate char and return?
-    uint8_t ret[20];
-    nrfDriver.readCharacteristic(ServerNamesToDataId.at(server.name), FieldId::CHAR_SENSOR_DATA_R, ret);
+    nrfDriver.requestCharacteristicRead(ServerNamesToDataId.at(server.name), CharUuidToFieldId.at(bleCharUuid));
     return true;
 }
 
-bool Nrf51822Interface::writeCharacteristic(const BleServerConfig& server,
-                                     uint32_t bleCharUuid,
-                                     const uint8_t* data,
-                                     const size_t len)
+bool Nrf51822Interface::requestCharacteristicWrite(const BleServerConfig& server,
+                                                   uint16_t               bleCharUuid,
+                                                   const uint8_t*         data,
+                                                   const size_t           len)
 {
-    //TODO translate char
-    nrfDriver.writeCharacteristic(ServerNamesToDataId.at(server.name), FieldId::CHAR_SENSOR_DATA_W, data, len);
+    nrfDriver.requestCharacteristicWrite(ServerNamesToDataId.at(server.name), CharUuidToFieldId.at(bleCharUuid), data, len);
     return true;
 }
 

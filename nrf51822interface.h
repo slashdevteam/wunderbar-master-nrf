@@ -6,6 +6,38 @@
 #include <unordered_map>
 #include <tuple>
 #include <list>
+#include "wunderbarble.h"
+
+const std::unordered_map<FieldId, uint16_t> FieldIdToCharUuid = {
+    {CHAR_SENSOR_ID              , characteristics::sensor::ID},
+    {CHAR_SENSOR_BEACON_FREQUENCY, characteristics::sensor::BEACON_FREQ},
+    {CHAR_SENSOR_FREQUENCY       , characteristics::sensor::FREQUENCY},
+    {CHAR_SENSOR_LED_STATE       , characteristics::sensor::LED_STATE},
+    {CHAR_SENSOR_THRESHOLD       , characteristics::sensor::THRESHOLD},
+    {CHAR_SENSOR_CONFIG          , characteristics::sensor::CONFIG},
+    {CHAR_SENSOR_DATA_R          , characteristics::sensor::DATA_R},
+    {CHAR_SENSOR_DATA_W          , characteristics::sensor::DATA_W},
+    {CHAR_BATTERY_LEVEL          , characteristics::ble::BATTERY_LEVEL},
+    {CHAR_MANUFACTURER_NAME      , characteristics::ble::MANUFACTURER_NAME_STRING},
+    {CHAR_HARDWARE_REVISION      , characteristics::ble::HARDWARE_REVISION_STRING},
+    {CHAR_FIRMWARE_REVISION      , characteristics::ble::FIRMWARE_REVISION_STRING}
+};
+
+const std::unordered_map<uint16_t, FieldId> CharUuidToFieldId = {
+    {characteristics::sensor::ID,                    CHAR_SENSOR_ID              },
+    {characteristics::sensor::BEACON_FREQ,           CHAR_SENSOR_BEACON_FREQUENCY},
+    {characteristics::sensor::FREQUENCY,             CHAR_SENSOR_FREQUENCY       },
+    {characteristics::sensor::LED_STATE,             CHAR_SENSOR_LED_STATE       },
+    {characteristics::sensor::THRESHOLD,             CHAR_SENSOR_THRESHOLD       },
+    {characteristics::sensor::CONFIG,                CHAR_SENSOR_CONFIG          },
+    {characteristics::sensor::DATA_R,                CHAR_SENSOR_DATA_R          },
+    {characteristics::sensor::DATA_W,                CHAR_SENSOR_DATA_W          },
+    {characteristics::ble::BATTERY_LEVEL,            CHAR_BATTERY_LEVEL          },
+    {characteristics::ble::MANUFACTURER_NAME_STRING, CHAR_MANUFACTURER_NAME      },
+    {characteristics::ble::HARDWARE_REVISION_STRING, CHAR_HARDWARE_REVISION      },
+    {characteristics::ble::FIRMWARE_REVISION_STRIN,  CHAR_FIRMWARE_REVISION      }
+};
+
 
 class IStdInOut;
 
@@ -71,11 +103,11 @@ public:
     virtual bool configure() override;
     virtual void startOperation() override;
     virtual bool storeConfig() override;
-    virtual bool readCharacteristic(const BleServerConfig& server, uint32_t bleCharUuid) override;
-    virtual bool writeCharacteristic(const BleServerConfig& server,
-                                     uint32_t bleCharUuid,
-                                     const uint8_t* data,
-                                     const size_t len) override;
+    virtual bool requestCharacteristicRead(const BleServerConfig& server, uint16_t bleCharUuid) override;
+    virtual bool requestCharacteristicWrite(const BleServerConfig& server,
+                                            uint16_t bleCharUuid,
+                                            const uint8_t* data,
+                                            const size_t len) override;
 private:
     void spiCallback();
     void onboardSensors();
