@@ -17,25 +17,27 @@ const std::unordered_map<FieldId, uint16_t> FieldIdToCharUuid = {
     {FieldId::CHAR_SENSOR_CONFIG          , wunderbar::characteristics::sensor::CONFIG},
     {FieldId::CHAR_SENSOR_DATA_R          , wunderbar::characteristics::sensor::DATA_R},
     {FieldId::CHAR_SENSOR_DATA_W          , wunderbar::characteristics::sensor::DATA_W},
+    
     {FieldId::CHAR_BATTERY_LEVEL          , wunderbar::characteristics::ble::BATTERY_LEVEL},
-    {FieldId::CHAR_MANUFACTURER_NAME      , wunderbar::characteristics::ble::MANUFACTURER_NAME_STRING},
-    {FieldId::CHAR_HARDWARE_REVISION      , wunderbar::characteristics::ble::HARDWARE_REVISION_STRING},
-    {FieldId::CHAR_FIRMWARE_REVISION      , wunderbar::characteristics::ble::FIRMWARE_REVISION_STRING}
+    {FieldId::CHAR_MANUFACTURER_NAME      , wunderbar::characteristics::ble::MANUFACTURER_NAME},
+    {FieldId::CHAR_HARDWARE_REVISION      , wunderbar::characteristics::ble::HARDWARE_REVISION},
+    {FieldId::CHAR_FIRMWARE_REVISION      , wunderbar::characteristics::ble::FIRMWARE_REVISION}
 };
 
 const std::unordered_map<uint16_t, FieldId> CharUuidToFieldId = {
-    {wunderbar::characteristics::sensor::ID,                    FieldId::CHAR_SENSOR_ID              },
-    {wunderbar::characteristics::sensor::BEACON_FREQ,           FieldId::CHAR_SENSOR_BEACON_FREQUENCY},
-    {wunderbar::characteristics::sensor::FREQUENCY,             FieldId::CHAR_SENSOR_FREQUENCY       },
-    {wunderbar::characteristics::sensor::LED_STATE,             FieldId::CHAR_SENSOR_LED_STATE       },
-    {wunderbar::characteristics::sensor::THRESHOLD,             FieldId::CHAR_SENSOR_THRESHOLD       },
-    {wunderbar::characteristics::sensor::CONFIG,                FieldId::CHAR_SENSOR_CONFIG          },
-    {wunderbar::characteristics::sensor::DATA_R,                FieldId::CHAR_SENSOR_DATA_R          },
-    {wunderbar::characteristics::sensor::DATA_W,                FieldId::CHAR_SENSOR_DATA_W          },
-    {wunderbar::characteristics::ble::BATTERY_LEVEL,            FieldId::CHAR_BATTERY_LEVEL          },
-    {wunderbar::characteristics::ble::MANUFACTURER_NAME_STRING, FieldId::CHAR_MANUFACTURER_NAME      },
-    {wunderbar::characteristics::ble::HARDWARE_REVISION_STRING, FieldId::CHAR_HARDWARE_REVISION      },
-    {wunderbar::characteristics::ble::FIRMWARE_REVISION_STRING, FieldId::CHAR_FIRMWARE_REVISION      }
+    {wunderbar::characteristics::sensor::ID,             FieldId::CHAR_SENSOR_ID              },
+    {wunderbar::characteristics::sensor::BEACON_FREQ,    FieldId::CHAR_SENSOR_BEACON_FREQUENCY},
+    {wunderbar::characteristics::sensor::FREQUENCY,      FieldId::CHAR_SENSOR_FREQUENCY       },
+    {wunderbar::characteristics::sensor::LED_STATE,      FieldId::CHAR_SENSOR_LED_STATE       },
+    {wunderbar::characteristics::sensor::THRESHOLD,      FieldId::CHAR_SENSOR_THRESHOLD       },
+    {wunderbar::characteristics::sensor::CONFIG,         FieldId::CHAR_SENSOR_CONFIG          },
+    {wunderbar::characteristics::sensor::DATA_R,         FieldId::CHAR_SENSOR_DATA_R          },
+    {wunderbar::characteristics::sensor::DATA_W,         FieldId::CHAR_SENSOR_DATA_W          },
+
+    {wunderbar::characteristics::ble::BATTERY_LEVEL,     FieldId::CHAR_BATTERY_LEVEL          },
+    {wunderbar::characteristics::ble::MANUFACTURER_NAME, FieldId::CHAR_MANUFACTURER_NAME      },
+    {wunderbar::characteristics::ble::HARDWARE_REVISION, FieldId::CHAR_HARDWARE_REVISION      },
+    {wunderbar::characteristics::ble::FIRMWARE_REVISION, FieldId::CHAR_FIRMWARE_REVISION      }
 };
 
 

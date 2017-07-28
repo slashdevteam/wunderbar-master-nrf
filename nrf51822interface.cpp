@@ -181,7 +181,50 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
 {
     BleEvent event = BleEvent::NONE;
     switch(fId)
-    {
+    {   
+        case FieldId::CHAR_SENSOR_ID:
+            event = BleEvent::DATA_SENSOR_ID;
+        break;
+
+        case FieldId::CHAR_SENSOR_BEACON_FREQUENCY:
+            event = BleEvent::DATA_SENSOR_BEACON_FREQUENCY;
+        break;
+
+        case FieldId::CHAR_SENSOR_FREQUENCY:
+            event = BleEvent::DATA_SENSOR_FREQUENCY;
+        break;
+
+        case FieldId::CHAR_SENSOR_THRESHOLD:
+            event = BleEvent::DATA_SENSOR_THRESHOLD;
+        break;
+
+        case FieldId::CHAR_SENSOR_CONFIG:
+            event = BleEvent::DATA_SENSOR_CONFIG;
+        break;
+
+        case FieldId::CHAR_SENSOR_DATA_R:
+            if (Operation::WRITE == op)
+            {
+                event = BleEvent::DATA_SENSOR_NEW_DATA;
+            }
+        break;
+
+        case FieldId::CHAR_BATTERY_LEVEL:
+            event = BleEvent::DATA_BATTERY_LEVEL;
+        break;
+
+        case FieldId::CHAR_MANUFACTURER_NAME:
+            event = BleEvent::DATA_HARDWARE_REVISION;
+        break;
+
+        case FieldId::CHAR_HARDWARE_REVISION:
+            event = BleEvent::DATA_HARDWARE_REVISION;
+        break;
+
+        case FieldId::CHAR_FIRMWARE_REVISION:
+            event = BleEvent::DATA_FIRMWARE_REVISION;
+        break;
+
         case FieldId::SENSOR_STATUS:
             if (Operation::CONNECTION_OPENED == op) 
             {
@@ -191,13 +234,6 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
             {
                 event = BleEvent:: CONNECTION_CLOSED;
             } 
-            break;
-
-        case FieldId::CHAR_SENSOR_DATA_R:
-            if (Operation::WRITE == op)
-            {
-                event = BleEvent::NEW_DATA_READOUT;
-            }
             break;
 
         default:
