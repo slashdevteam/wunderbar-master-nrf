@@ -7,6 +7,7 @@
 #include <tuple>
 #include <list>
 #include "wunderbarble.h"
+#include "wunderbarsensordatatypes.h"
 
 const std::unordered_map<FieldId, uint16_t> FieldIdToCharUuid = {
     {FieldId::CHAR_SENSOR_ID              , wunderbar::characteristics::sensor::ID},
@@ -70,15 +71,6 @@ struct ServerInfo {
           onboardInfo()
           {}
 
-};
-
-const ServerName WunderbarSensorNames[] = {
-    "WunderbarHTU",
-    "WunderbarGYRO",
-    "WunderbarLIGHT",
-    "WunderbarMIC",
-    "WunderbarBRIDG",
-    "WunderbarIR"
 };
 
 const std::unordered_map<ServerName, DataId> ServerNamesToDataId = {
