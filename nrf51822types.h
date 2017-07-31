@@ -54,7 +54,8 @@ enum class FieldId : uint8_t
     RUN                             = 0x20,
     ONBOARD_DONE                    = 0x21,
     KILL                            = 0x22,
-
+    SENSOR_WRITE_OK                 = 0x23,
+    
     INVALID                         = 0xFF
 };
 
@@ -63,7 +64,7 @@ enum class Operation : uint8_t
     WRITE = 0x0,
     READ  = 0x1,
 
-    // It was used in this manner for FIELD_ID_SENSOR_STATUS, so let's have it explicitly
+    // It is used in this manner for FIELD_ID_SENSOR_STATUS, so let's have it explicitly
     CONNECTION_OPENED = 0x0,
     CONNECTION_CLOSED = 0x1,
 

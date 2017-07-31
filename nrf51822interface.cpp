@@ -1,6 +1,5 @@
 #include "nrf51822interface.h"
 
-#include "wunderbarble.h"
 #include  <algorithm>
 #include "istdinout.h"
 #include "mbed.h"
@@ -121,22 +120,18 @@ bool Nrf51822Interface::storeConfig()
     return false;
 }
 
-bool Nrf51822Interface::readCharacteristic(const BleServerConfig& server, uint32_t bleCharUuid)
+bool Nrf51822Interface::requestRead(const BleServerConfig& server, uint16_t bleCharUuid)
 {
-
-    //TODO translate char and return?
-    uint8_t ret[20];
-    nrfDriver.readCharacteristic(ServerNamesToDataId.at(server.name), FieldId::CHAR_SENSOR_DATA_R, ret);
+    nrfDriver.requestCharacteristicRead(ServerNamesToDataId.at(server.name), CharUuidToFieldId.at(bleCharUuid));
     return true;
 }
 
-bool Nrf51822Interface::writeCharacteristic(const BleServerConfig& server,
-                                     uint32_t bleCharUuid,
-                                     const uint8_t* data,
-                                     const size_t len)
+bool Nrf51822Interface::requestWrite(const BleServerConfig& server,
+                                     uint16_t               bleCharUuid,
+                                     const uint8_t*         data,
+                                     const size_t           len)
 {
-    //TODO translate char
-    nrfDriver.writeCharacteristic(ServerNamesToDataId.at(server.name), FieldId::CHAR_SENSOR_DATA_W, data, len);
+    nrfDriver.requestCharacteristicWrite(ServerNamesToDataId.at(server.name), CharUuidToFieldId.at(bleCharUuid), data, len);
     return true;
 }
 
@@ -186,7 +181,50 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
 {
     BleEvent event = BleEvent::NONE;
     switch(fId)
-    {
+    {   
+        case FieldId::CHAR_SENSOR_ID:
+            event = BleEvent::DATA_SENSOR_ID;
+        break;
+
+        case FieldId::CHAR_SENSOR_BEACON_FREQUENCY:
+            event = BleEvent::DATA_SENSOR_BEACON_FREQUENCY;
+        break;
+
+        case FieldId::CHAR_SENSOR_FREQUENCY:
+            event = BleEvent::DATA_SENSOR_FREQUENCY;
+        break;
+
+        case FieldId::CHAR_SENSOR_THRESHOLD:
+            event = BleEvent::DATA_SENSOR_THRESHOLD;
+        break;
+
+        case FieldId::CHAR_SENSOR_CONFIG:
+            event = BleEvent::DATA_SENSOR_CONFIG;
+        break;
+
+        case FieldId::CHAR_SENSOR_DATA_R:
+            if (Operation::WRITE == op)
+            {
+                event = BleEvent::DATA_SENSOR_NEW_DATA;
+            }
+        break;
+
+        case FieldId::CHAR_BATTERY_LEVEL:
+            event = BleEvent::DATA_BATTERY_LEVEL;
+        break;
+
+        case FieldId::CHAR_MANUFACTURER_NAME:
+            event = BleEvent::DATA_HARDWARE_REVISION;
+        break;
+
+        case FieldId::CHAR_HARDWARE_REVISION:
+            event = BleEvent::DATA_HARDWARE_REVISION;
+        break;
+
+        case FieldId::CHAR_FIRMWARE_REVISION:
+            event = BleEvent::DATA_FIRMWARE_REVISION;
+        break;
+
         case FieldId::SENSOR_STATUS:
             if (Operation::CONNECTION_OPENED == op) 
             {
@@ -198,13 +236,8 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
             } 
             break;
 
-        case FieldId::CHAR_SENSOR_DATA_R:
-            if (Operation::WRITE == op)
-            {
-                event = BleEvent::NEW_DATA_READOUT;
-            }
-            break;
-
+        case FieldId::SENSOR_WRITE_OK:
+            event = BleEvent::WRITE_OK;
         default:
             break;
     };
