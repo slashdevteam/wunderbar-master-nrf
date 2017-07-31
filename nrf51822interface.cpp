@@ -236,6 +236,8 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
             } 
             break;
 
+        case FieldId::SENSOR_WRITE_OK:
+            event = BleEvent::WRITE_OK;
         default:
             break;
     };
