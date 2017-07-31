@@ -97,11 +97,11 @@ public:
     virtual bool configure() override;
     virtual void startOperation() override;
     virtual bool storeConfig() override;
-    virtual bool requestCharacteristicRead(const BleServerConfig& server, uint16_t bleCharUuid) override;
-    virtual bool requestCharacteristicWrite(const BleServerConfig& server,
-                                            uint16_t bleCharUuid,
-                                            const uint8_t* data,
-                                            const size_t len) override;
+    virtual bool requestRead(const BleServerConfig& server, uint16_t bleCharUuid) override;
+    virtual bool requestWrite(const BleServerConfig& server,
+                              uint16_t bleCharUuid,
+                              const uint8_t* data,
+                              const size_t len) override;
 private:
     void spiCallback();
     void onboardSensors();

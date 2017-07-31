@@ -120,16 +120,16 @@ bool Nrf51822Interface::storeConfig()
     return false;
 }
 
-bool Nrf51822Interface::requestCharacteristicRead(const BleServerConfig& server, uint16_t bleCharUuid)
+bool Nrf51822Interface::requestRead(const BleServerConfig& server, uint16_t bleCharUuid)
 {
     nrfDriver.requestCharacteristicRead(ServerNamesToDataId.at(server.name), CharUuidToFieldId.at(bleCharUuid));
     return true;
 }
 
-bool Nrf51822Interface::requestCharacteristicWrite(const BleServerConfig& server,
-                                                   uint16_t               bleCharUuid,
-                                                   const uint8_t*         data,
-                                                   const size_t           len)
+bool Nrf51822Interface::requestWrite(const BleServerConfig& server,
+                                     uint16_t               bleCharUuid,
+                                     const uint8_t*         data,
+                                     const size_t           len)
 {
     nrfDriver.requestCharacteristicWrite(ServerNamesToDataId.at(server.name), CharUuidToFieldId.at(bleCharUuid), data, len);
     return true;
