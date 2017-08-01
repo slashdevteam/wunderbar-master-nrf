@@ -4,6 +4,48 @@
 #include "istdinout.h"
 #include "mbed.h"
 
+#include "wunderbarsensordatatypes.h"
+
+uint16_t FieldIdToCharUuid(FieldId& field)
+{
+    static const std::unordered_map<FieldId, uint16_t> field2Uuid = {
+    {FieldId::CHAR_SENSOR_ID              , wunderbar::characteristics::sensor::ID},
+    {FieldId::CHAR_SENSOR_BEACON_FREQUENCY, wunderbar::characteristics::sensor::BEACON_FREQ},
+    {FieldId::CHAR_SENSOR_FREQUENCY       , wunderbar::characteristics::sensor::FREQUENCY},
+    {FieldId::CHAR_SENSOR_LED_STATE       , wunderbar::characteristics::sensor::LED_STATE},
+    {FieldId::CHAR_SENSOR_THRESHOLD       , wunderbar::characteristics::sensor::THRESHOLD},
+    {FieldId::CHAR_SENSOR_CONFIG          , wunderbar::characteristics::sensor::CONFIG},
+    {FieldId::CHAR_SENSOR_DATA_R          , wunderbar::characteristics::sensor::DATA_R},
+    {FieldId::CHAR_SENSOR_DATA_W          , wunderbar::characteristics::sensor::DATA_W},
+
+    {FieldId::CHAR_BATTERY_LEVEL          , wunderbar::characteristics::ble::BATTERY_LEVEL},
+    {FieldId::CHAR_MANUFACTURER_NAME      , wunderbar::characteristics::ble::MANUFACTURER_NAME},
+    {FieldId::CHAR_HARDWARE_REVISION      , wunderbar::characteristics::ble::HARDWARE_REVISION},
+    {FieldId::CHAR_FIRMWARE_REVISION      , wunderbar::characteristics::ble::FIRMWARE_REVISION}
+    };
+    return field2Uuid.at(field);
+}
+
+FieldId CharUuidToFieldId(uint16_t uuid)
+{
+    static const std::unordered_map<uint16_t, FieldId> uuid2Field = {
+    {wunderbar::characteristics::sensor::ID,             FieldId::CHAR_SENSOR_ID              },
+    {wunderbar::characteristics::sensor::BEACON_FREQ,    FieldId::CHAR_SENSOR_BEACON_FREQUENCY},
+    {wunderbar::characteristics::sensor::FREQUENCY,      FieldId::CHAR_SENSOR_FREQUENCY       },
+    {wunderbar::characteristics::sensor::LED_STATE,      FieldId::CHAR_SENSOR_LED_STATE       },
+    {wunderbar::characteristics::sensor::THRESHOLD,      FieldId::CHAR_SENSOR_THRESHOLD       },
+    {wunderbar::characteristics::sensor::CONFIG,         FieldId::CHAR_SENSOR_CONFIG          },
+    {wunderbar::characteristics::sensor::DATA_R,         FieldId::CHAR_SENSOR_DATA_R          },
+    {wunderbar::characteristics::sensor::DATA_W,         FieldId::CHAR_SENSOR_DATA_W          },
+
+    {wunderbar::characteristics::ble::BATTERY_LEVEL,     FieldId::CHAR_BATTERY_LEVEL          },
+    {wunderbar::characteristics::ble::MANUFACTURER_NAME, FieldId::CHAR_MANUFACTURER_NAME      },
+    {wunderbar::characteristics::ble::HARDWARE_REVISION, FieldId::CHAR_HARDWARE_REVISION      },
+    {wunderbar::characteristics::ble::FIRMWARE_REVISION, FieldId::CHAR_FIRMWARE_REVISION      }
+    };
+    return uuid2Field.at(uuid);
+}
+
 const int32_t SIGNAL_FW_VERSION_READ = 0x1;
 const int32_t SIGNAL_ONBOARDING_DONE = 0x2;
 const int32_t SIGNAL_CONFIG_ACK      = 0x4;
@@ -18,7 +60,6 @@ Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk
       log(_log)
 {
     nrfDriver.config(mbed::callback(this, &Nrf51822Interface::spiCallback));
-    nrfDriver.reset();
 }
 
 Nrf51822Interface::~Nrf51822Interface()
@@ -32,12 +73,12 @@ bool Nrf51822Interface::registerServer(BleServerConfig& config, BleServerCallbac
 
     if(servers.size() < wunderbar::limits::MAX_SERVERS)
     {
-        auto serverId = ServerNamesToDataId.at(config.name);
+        auto serverId = ServerNamesToDataId(config.name);
         auto existingServer = servers.find(serverId);
-        
+
         if(existingServer == servers.end())
         {
-            servers.emplace(ServerNamesToDataId.at(config.name), ServerInfo(config, serverCallback));
+            servers.emplace(ServerNamesToDataId(config.name), ServerInfo(config, serverCallback));
             serverList.emplace_back(serverId);
             success = true;
             log->printf("ok!\n");
@@ -74,17 +115,19 @@ bool Nrf51822Interface::configure()
 
 void Nrf51822Interface::startOperation()
 {
+    nrfDriver.reset();
     // move to run mode
     log->printf("Moving to run mode...\n");
     nrfDriver.setMode(Modes::RUN);
 }
 
 void Nrf51822Interface::onboardSensors()
-{   
+{
+    nrfDriver.reset();
     // signal should be already received from initial NRF reset
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
 
-    //use new passkeys for all servers 
+    //use new passkeys for all servers
     nrfDriver.requestPasskeyStoring();
     rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
 
@@ -92,7 +135,7 @@ void Nrf51822Interface::onboardSensors()
     for(auto& server : servers)
     {
         auto& config = std::get<ServerInfo>(server).serverConfig;
-        nrfDriver.configServerPass(ServerNamesToDataId.at(config->name), config->passKey.data());
+        nrfDriver.configServerPass(ServerNamesToDataId(config->name), config->passKey.data());
         rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
     }
     log->printf("...done!");
@@ -122,7 +165,7 @@ bool Nrf51822Interface::storeConfig()
 
 bool Nrf51822Interface::requestRead(const BleServerConfig& server, uint16_t bleCharUuid)
 {
-    nrfDriver.requestCharacteristicRead(ServerNamesToDataId.at(server.name), CharUuidToFieldId.at(bleCharUuid));
+    nrfDriver.requestCharacteristicRead(ServerNamesToDataId(server.name), CharUuidToFieldId(bleCharUuid));
     return true;
 }
 
@@ -131,7 +174,7 @@ bool Nrf51822Interface::requestWrite(const BleServerConfig& server,
                                      const uint8_t*         data,
                                      const size_t           len)
 {
-    nrfDriver.requestCharacteristicWrite(ServerNamesToDataId.at(server.name), CharUuidToFieldId.at(bleCharUuid), data, len);
+    nrfDriver.requestCharacteristicWrite(ServerNamesToDataId(server.name), CharUuidToFieldId(bleCharUuid), data, len);
     return true;
 }
 
@@ -151,7 +194,7 @@ void Nrf51822Interface::handleOnboarding(SpiFrame& inboundFrame)
 
             // if all events arrived, server is considered onboarded
             if (reqConfigFields == servers[serverId].onboardInfo.onboardSeq)
-            {   
+            {
                 log->printf("Server %s onboarded, waiting for confirmation...\n", servers[serverId].serverConfig->name.c_str());
                 servers[serverId].bleServerCb(BleEvent::DISCOVERY_COMPLETE, inboundFrame.data, sizeof(inboundFrame.data));
             }
@@ -162,7 +205,7 @@ void Nrf51822Interface::handleOnboarding(SpiFrame& inboundFrame)
 
 void Nrf51822Interface::serverDiscoveryComlpete(BleServerConfig& config)
 {
-    auto server = ServerNamesToDataId.at(config.name);
+    auto server = ServerNamesToDataId(config.name);
 
     servers[server].onboardInfo.onboarded = true;
     serversOnboarded.push_back(server);
@@ -181,7 +224,7 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
 {
     BleEvent event = BleEvent::NONE;
     switch(fId)
-    {   
+    {
         case FieldId::CHAR_SENSOR_ID:
             event = BleEvent::DATA_SENSOR_ID;
         break;
@@ -226,14 +269,14 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
         break;
 
         case FieldId::SENSOR_STATUS:
-            if (Operation::CONNECTION_OPENED == op) 
+            if (Operation::CONNECTION_OPENED == op)
             {
                 event = BleEvent::CONNECTION_OPENED;
             }
             else if (Operation::CONNECTION_CLOSED == op)
             {
                 event = BleEvent:: CONNECTION_CLOSED;
-            } 
+            }
             break;
 
         case FieldId::SENSOR_WRITE_OK:
@@ -259,17 +302,17 @@ void Nrf51822Interface::spiCallback()
         case DataId::DEV_SOUND: // intentional fall-through
         case DataId::DEV_BRIDGE: // intentional fall-through
         case DataId::DEV_IR:
-            {   
+            {
                 // parse data only if server is on the list
                 auto serverEntry = std::find(serverList.begin(), serverList.end(), inbound.dataId);
 
                 if(serverEntry != serverList.end())
                 {
                     if(servers[inbound.dataId].onboardInfo.onboarded)
-                    {   
+                    {
                         servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
-                                                                            inbound.data,
-                                                                            sizeof(inbound.data));
+                                                            inbound.data,
+                                                            sizeof(inbound.data));
                     }
                     else
                     {
@@ -283,17 +326,26 @@ void Nrf51822Interface::spiCallback()
 
             if (FieldId::CONFIG_ACK == inbound.fieldId)
             {
-                configurator.signal_set(SIGNAL_CONFIG_ACK);
-            } 
+                if(Thread::State::Ready < configurator.get_state())
+                {
+                    configurator.signal_set(SIGNAL_CONFIG_ACK);
+                }
+            }
             else if (FieldId::CONFIG_COMPLETE == inbound.fieldId)
             {
-                configurator.signal_set(SIGNAL_CONFIG_COMPLETE);
-            } 
+                if(Thread::State::Ready < configurator.get_state())
+                {
+                    configurator.signal_set(SIGNAL_CONFIG_COMPLETE);
+                }
+            }
             else if (FieldId::CONFIG_ERROR == inbound.fieldId)
             {
                 log->printf("Fatal error, configuration rejected!");
                 configOk = false;
-                configurator.terminate();
+                if(Thread::State::Ready < configurator.get_state())
+                {
+                    configurator.terminate();
+                }
             }
             break;
 
@@ -303,7 +355,10 @@ void Nrf51822Interface::spiCallback()
         case DataId::DEV_CENTRAL:
             if(FieldId::CHAR_FIRMWARE_REVISION == inbound.fieldId)
             {
-                configurator.signal_set(SIGNAL_FW_VERSION_READ);
+                if(Thread::State::Ready < configurator.get_state())
+                {
+                    configurator.signal_set(SIGNAL_FW_VERSION_READ);
+                }
             }
             break;
 
