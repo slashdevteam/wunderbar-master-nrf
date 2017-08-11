@@ -10,7 +10,7 @@
 const uint32_t LOW  = 0;
 const uint32_t HIGH = 1;
 const uint32_t SIGNAL_IRQ = 0x1;
-const uint32_t NRF_RESET_TIME_US = 100;
+const uint32_t NRF_RESET_TIME_US = 200;
 const uint32_t DUMMY_BYTE = 0xFF;
 
 const auto SPI_BITS_PER_FRAME = 8;
@@ -28,13 +28,14 @@ Nrf51822::Nrf51822(PinName _mosi,
       recvDataThread()
 {
     DigitalOut ssel(_ssel, HIGH);
+    DigitalOut swclk(NRF_SWCLK, LOW);
 }
 
 void Nrf51822::reset()
 {
     // take control of reset pin and put it up
     mbed::DigitalInOut resetPin(NRF_NRESET, PinDirection::PIN_OUTPUT, PinMode::PullUp, HIGH);
-    
+
     // hold it to stabilise the level
     wait_us(NRF_RESET_TIME_US*2);
 
@@ -131,7 +132,7 @@ void Nrf51822::setMode(Modes newMode)
 void Nrf51822::softwareReset()
 {
     SpiFrame frame = {DataId::CONFIG,
-                      FieldId::KILL, 
+                      FieldId::KILL,
                       Operation::NOT_USED};
 
     write(reinterpret_cast<char*>(&frame), sizeof(frame));
@@ -170,7 +171,7 @@ void Nrf51822::requestCharacteristicWrite(DataId client, FieldId bleChar, const 
     SpiFrame frame = {static_cast<DataId>(client),
                       bleChar,
                       Operation::WRITE};
-                      
+
     std::memcpy(frame.data, data, len);
     write(reinterpret_cast<char*>(&frame), sizeof(frame));
 }

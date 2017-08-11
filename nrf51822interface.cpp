@@ -124,6 +124,7 @@ void Nrf51822Interface::startOperation()
 void Nrf51822Interface::onboardSensors()
 {
     nrfDriver.reset();
+    wait(1);
     // signal should be already received from initial NRF reset
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
 
@@ -138,11 +139,17 @@ void Nrf51822Interface::onboardSensors()
         nrfDriver.configServerPass(ServerNamesToDataId(config->name), config->passKey.data());
         rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
     }
-    log->printf("...done!");
+    log->printf("...done!\r\n");
 
     // request config mode from NRF to perform sensor onboarding
     log->printf("Commencing sensors' onboarding...\n");
     nrfDriver.setMode(Modes::CONFIG);
+
+    log->printf("Please put all Bluetooth sensors in onboarding mode by\r\n");
+    log->printf("pressing & releasing button on sensor\r\n");
+    log->printf("Leds should start blinking.\r\n");
+    log->printf("Now press ENTER to continue.\r\n");
+    log->getc();
 
     // wait till onboarding is done and all data is stored in the NRF's NVRAM
     rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
