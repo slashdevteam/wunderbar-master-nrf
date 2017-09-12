@@ -60,13 +60,16 @@ public:
                               const uint8_t* data,
                               const size_t len) override;
 private:
-    void spiCallback();
+    void onboardModeCb();
+    void runModeCb();
+    void goToRunMode();
     void onboardSensors();
     void handleOnboarding(SpiFrame&);
 
 private:
     Nrf51822 nrfDriver;
-    rtos::Thread configurator;
+    rtos::Thread onboardMode;
+    rtos::Thread runMode;
     volatile bool configOk;
 
     // fields to be received from sensor being onboarded

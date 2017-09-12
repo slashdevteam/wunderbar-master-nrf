@@ -33,20 +33,8 @@ Nrf51822::Nrf51822(PinName _mosi,
 
 void Nrf51822::reset()
 {
-    // take control of reset pin and put it up
-    mbed::DigitalInOut resetPin(NRF_NRESET, PinDirection::PIN_OUTPUT, PinMode::PullUp, HIGH);
-
-    // hold it to stabilise the level
-    wait_us(NRF_RESET_TIME_US*2);
-
-    // pull reset pin down
-    resetPin = LOW;
-
-    // hold it down
-    wait_us(NRF_RESET_TIME_US*2);
-
-    // pull it up again
-    resetPin = HIGH;
+    off();
+    on();
 }
 
 void Nrf51822::on()

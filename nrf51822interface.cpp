@@ -53,14 +53,13 @@ const int32_t SIGNAL_CONFIG_COMPLETE = 0x8;
 
 Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq, IStdInOut* _log)
     : nrfDriver(_mosi, _miso, _sclk, _ssel, _extIrq),
-      configurator(osPriorityNormal, 0x400),
+      onboardMode(osPriorityNormal, 0x400),
       configOk(true),
       serverList(),
       serversOnboarded(),
       log(_log)
 {
     nrfDriver.off();
-    nrfDriver.config(mbed::callback(this, &Nrf51822Interface::spiCallback));
 }
 
 Nrf51822Interface::~Nrf51822Interface()
@@ -108,29 +107,44 @@ bool Nrf51822Interface::configure()
     serverList.sort();
 
     // perform onboarding
-    configurator.start(mbed::callback(this, &Nrf51822Interface::onboardSensors));
-    configurator.join();
+    nrfDriver.config(mbed::callback(this, &Nrf51822Interface::onboardModeCb));
+    
+    onboardMode.start(mbed::callback(this, &Nrf51822Interface::onboardSensors));
+    onboardMode.join();
 
     return configOk;
 }
 
 void Nrf51822Interface::startOperation()
 {
-    // nrfDriver.off();
-    // nrfDriver.on();
+    nrfDriver.config(mbed::callback(this, &Nrf51822Interface::runModeCb));
+    
+    runMode.start(mbed::callback(this, &Nrf51822Interface::goToRunMode));
+    runMode.join();
+}
 
-    wait(3);
+void Nrf51822Interface::goToRunMode()
+{
+    // Powering up NRF module
+    log->printf("Powering up NRF...\n");
+    nrfDriver.on();
+
+    rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
+    log->printf("...done!");
 
     // move to run mode
-    log->printf("Moving to run mode...\n");
+    log->printf("Moving to run mode!\n");
     nrfDriver.setMode(Modes::RUN);
 }
 
 void Nrf51822Interface::onboardSensors()
 {
+    // Powering up NRF module
+    log->printf("Powering up NRF...\n");
     nrfDriver.on();
-    // signal should be already received from initial NRF reset
+
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
+    log->printf("...done!\r\n");
 
     //use new passkeys for all servers
     nrfDriver.requestPasskeyStoring();
@@ -144,23 +158,30 @@ void Nrf51822Interface::onboardSensors()
         rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
     }
     log->printf("...done!\r\n");
-
-    // request config mode from NRF to perform sensor onboarding
-    log->printf("Commencing sensors' onboarding...\n");
+    
+    // move to config mode to run flash driver and commence onboarding of requested sensors
     nrfDriver.setMode(Modes::CONFIG);
 
-    // wait till onboarding is done and all data is stored in the NRF's NVRAM
-    rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
+    log->printf("Saving passwords in NRF's flash memory...\n");
+    
+    // wait till  all data is stored in the NRF's NVRAM
     rtos::Thread::signal_wait(SIGNAL_CONFIG_COMPLETE);
-    log->printf("...done!");
+    log->printf("...done!\r\n");
+    
+    log->printf("Please put all Bluetooth sensors in onboarding mode by\r\n");
+    log->printf("pressing & releasing button on sensor\r\n");
+    log->printf("Leds should start blinking.\r\n");
+    log->printf("Now press ENTER to continue.\r\n");
+    log->getc();
+    log->printf("Onboarding started, please wait a moment...\n");
+    
+    // wait till onboarding is done
+    rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
 
-    // to confiugure new services NRF has to be restarted
-    log->printf("Reseting NRF...\n");
-    nrfDriver.softwareReset();
+    // switching off NRF
+    nrfDriver.off();
 
-    // wait for callback after restart
-    rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
-    log->printf("...done!");
+    log->printf("...done! NRF switched off.\r\n");
 }
 
 bool Nrf51822Interface::storeConfig()
@@ -221,7 +242,7 @@ void Nrf51822Interface::serverDiscoveryComlpete(BleServerConfig& config)
     if (serverList == serversOnboarded)
     {
         log->printf("All servers ready! \n", config.name);
-        configurator.signal_set(SIGNAL_ONBOARDING_DONE);
+        onboardMode.signal_set(SIGNAL_ONBOARDING_DONE);
     }
 }
 
@@ -293,14 +314,83 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
     return event;
 }
 
-void Nrf51822Interface::spiCallback()
+void Nrf51822Interface::onboardModeCb()
 {
     SpiFrame inbound;
     nrfDriver.read(reinterpret_cast<char*>(&inbound), sizeof(inbound));
     log->printf("SPI cb, dataId 0x%X, fieldId 0x%X, op 0x%X \n", inbound.dataId, inbound.fieldId, inbound.operation);
 
-    const Thread::State configuratorState = configurator.get_state();
-    bool configuratorRunning = (configuratorState > Thread::State::Ready) && (configuratorState < Thread::State::Deleted);
+    const Thread::State threadState = onboardMode.get_state();
+    const bool onboardModeRunning = (threadState > Thread::State::Ready) && (threadState < Thread::State::Deleted);
+
+    if(!onboardModeRunning)
+    {
+        log->printf("Error occured, %s executed while expected thread not running! \n", __PRETTY_FUNCTION__);
+        return;
+    }
+
+    switch(inbound.dataId)
+    {
+        case DataId::DEV_HTU: // intentional fall-through
+        case DataId::DEV_GYRO: // intentional fall-through
+        case DataId::DEV_LIGHT: // intentional fall-through
+        case DataId::DEV_SOUND: // intentional fall-through
+        case DataId::DEV_BRIDGE: // intentional fall-through
+        case DataId::DEV_IR:
+            {
+                // parse data only if server is on the list
+                auto serverEntry = std::find(serverList.begin(), serverList.end(), inbound.dataId);
+
+                if(serverEntry != serverList.end())
+                {
+                    if(!servers[inbound.dataId].onboardInfo.onboarded)
+                    {
+                        handleOnboarding(inbound);
+                    }
+                }
+            }
+            break;
+
+        case DataId::CONFIG:
+
+            if (FieldId::CONFIG_ACK == inbound.fieldId)
+            {
+                onboardMode.signal_set(SIGNAL_CONFIG_ACK);
+            }
+            else if (FieldId::CONFIG_COMPLETE == inbound.fieldId)
+            {
+                onboardMode.signal_set(SIGNAL_CONFIG_COMPLETE);
+            }
+            else if (FieldId::CONFIG_ERROR == inbound.fieldId)
+            {
+                log->printf("Fatal error, configuration rejected!");
+                configOk = false;
+             
+                onboardMode.terminate();
+            }
+            break;
+
+        case DataId::ERROR:
+            break;
+
+        case DataId::DEV_CENTRAL:
+            if(FieldId::CHAR_FIRMWARE_REVISION == inbound.fieldId)
+            {
+                onboardMode.signal_set(SIGNAL_FW_VERSION_READ);
+            }
+            break;
+
+        default:
+            break;
+    }
+
+}
+
+void Nrf51822Interface::runModeCb()
+{
+    SpiFrame inbound;
+    nrfDriver.read(reinterpret_cast<char*>(&inbound), sizeof(inbound));
+    log->printf("SPI cb, dataId 0x%X, fieldId 0x%X, op 0x%X \n", inbound.dataId, inbound.fieldId, inbound.operation);
 
     switch(inbound.dataId)
     {
@@ -318,41 +408,10 @@ void Nrf51822Interface::spiCallback()
                 {
                     if(servers[inbound.dataId].onboardInfo.onboarded)
                     {
-                        // servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
-                        //                                     inbound.data,
-                        //                                     sizeof(inbound.data));
+                        servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
+                                                            inbound.data,
+                                                            sizeof(inbound.data));
                     }
-                    else
-                    {
-                        handleOnboarding(inbound);
-                    }
-                }
-            }
-            break;
-
-        case DataId::CONFIG:
-
-            if (FieldId::CONFIG_ACK == inbound.fieldId)
-            {
-                if(configuratorRunning)
-                {
-                    configurator.signal_set(SIGNAL_CONFIG_ACK);
-                }
-            }
-            else if (FieldId::CONFIG_COMPLETE == inbound.fieldId)
-            {
-                if(configuratorRunning)
-                {
-                    configurator.signal_set(SIGNAL_CONFIG_COMPLETE);
-                }
-            }
-            else if (FieldId::CONFIG_ERROR == inbound.fieldId)
-            {
-                log->printf("Fatal error, configuration rejected!");
-                configOk = false;
-                if(configuratorRunning)
-                {
-                    configurator.terminate();
                 }
             }
             break;
@@ -363,9 +422,12 @@ void Nrf51822Interface::spiCallback()
         case DataId::DEV_CENTRAL:
             if(FieldId::CHAR_FIRMWARE_REVISION == inbound.fieldId)
             {
-                if(configuratorRunning)
+                const Thread::State threadState = runMode.get_state();
+                const bool threadRunning = (threadState > Thread::State::Ready) && (threadState < Thread::State::Deleted);
+
+                if(threadRunning)
                 {
-                    configurator.signal_set(SIGNAL_FW_VERSION_READ);
+                    runMode.signal_set(SIGNAL_FW_VERSION_READ);
                 }
             }
             break;
@@ -374,5 +436,5 @@ void Nrf51822Interface::spiCallback()
             break;
     }
 
-    return;
 }
+
