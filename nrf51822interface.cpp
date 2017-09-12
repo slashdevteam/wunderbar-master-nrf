@@ -54,6 +54,7 @@ const int32_t SIGNAL_CONFIG_COMPLETE = 0x8;
 Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq, IStdInOut* _log)
     : nrfDriver(_mosi, _miso, _sclk, _ssel, _extIrq),
       onboardMode(osPriorityNormal, 0x400),
+      runMode(osPriorityNormal, 0x400),
       configOk(true),
       serverList(),
       serversOnboarded(),
