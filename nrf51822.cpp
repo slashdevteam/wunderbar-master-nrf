@@ -52,12 +52,11 @@ void Nrf51822::off()
     mbed::DigitalInOut resetPin(NRF_NRESET, PinDirection::PIN_OUTPUT, PinMode::PullUp, LOW);
 }
 
-void Nrf51822::config(SpiSlaveReadReqCb cb)
+void Nrf51822::config()
 {
     spiDriver.frequency(2e6);
     spiDriver.format(SPI_BITS_PER_FRAME, SPI_MODE);
 
-    recvDataExtCb = cb;
     recvDataIrq.mode(PinMode::PullDown);
     recvDataIrq.rise(mbed::callback(this, &Nrf51822::recvDataIrqCb));
 

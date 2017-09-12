@@ -61,6 +61,7 @@ Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk
       log(_log)
 {
     nrfDriver.off();
+    nrfDriver.config();
 }
 
 Nrf51822Interface::~Nrf51822Interface()
@@ -107,9 +108,10 @@ bool Nrf51822Interface::configure()
     // Have sorted list of all registered servers for comparison during onboarding
     serverList.sort();
 
-    // perform onboarding
-    nrfDriver.config(mbed::callback(this, &Nrf51822Interface::onboardModeCb));
+    // Set callback
+    nrfDriver.setRecvReadyCb(mbed::callback(this, &Nrf51822Interface::onboardModeCb));
     
+    // Perform onboarding
     onboardMode.start(mbed::callback(this, &Nrf51822Interface::onboardSensors));
     onboardMode.join();
 
@@ -118,7 +120,7 @@ bool Nrf51822Interface::configure()
 
 void Nrf51822Interface::startOperation()
 {
-    nrfDriver.config(mbed::callback(this, &Nrf51822Interface::runModeCb));
+    nrfDriver.setRecvReadyCb(mbed::callback(this, &Nrf51822Interface::runModeCb));
     
     runMode.start(mbed::callback(this, &Nrf51822Interface::goToRunMode));
     runMode.join();
@@ -133,7 +135,7 @@ void Nrf51822Interface::goToRunMode()
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
     log->printf("...done!");
 
-    // move to run mode
+    // Move to run mode
     log->printf("Moving to run mode!\n");
     nrfDriver.setMode(Modes::RUN);
 }
@@ -438,4 +440,3 @@ void Nrf51822Interface::runModeCb()
     }
 
 }
-

@@ -22,8 +22,8 @@ public:
     void off();
     // do SW reset via kill signal over SPI
     void softwareReset();
-    // config communication settings, sets callback to receive data from nrf when requesting
-    void config(SpiSlaveReadReqCb cb);
+    // config communication settings
+    void config();
     // sets/changes callback to receive data from nrf when requesting
     void setRecvReadyCb(SpiSlaveReadReqCb cb);
 
