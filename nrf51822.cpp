@@ -49,6 +49,21 @@ void Nrf51822::reset()
     resetPin = HIGH;
 }
 
+void Nrf51822::on()
+{
+    // hold it to stabilise the level
+    wait_us(NRF_RESET_TIME_US*2);
+
+    // take control of reset pin and put it up
+    mbed::DigitalInOut resetPin(NRF_NRESET, PinDirection::PIN_OUTPUT, PinMode::PullUp, HIGH);
+}
+
+void Nrf51822::off()
+{
+    // take control of reset pin and put it up
+    mbed::DigitalInOut resetPin(NRF_NRESET, PinDirection::PIN_OUTPUT, PinMode::PullUp, LOW);
+}
+
 void Nrf51822::config(SpiSlaveReadReqCb cb)
 {
     spiDriver.frequency(2e6);

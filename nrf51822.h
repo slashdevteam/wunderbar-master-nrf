@@ -18,6 +18,8 @@ public:
     Nrf51822(PinName _mosi, PinName _miso, PinName _sclk, PinName _ssel, PinName _extIrq);
     // do HW chip reset
     void reset();
+    void on();
+    void off();
     // do SW reset via kill signal over SPI
     void softwareReset();
     // config communication settings, sets callback to receive data from nrf when requesting

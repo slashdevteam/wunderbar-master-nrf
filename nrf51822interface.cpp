@@ -59,6 +59,7 @@ Nrf51822Interface::Nrf51822Interface(PinName _mosi, PinName _miso, PinName _sclk
       serversOnboarded(),
       log(_log)
 {
+    nrfDriver.off();
     nrfDriver.config(mbed::callback(this, &Nrf51822Interface::spiCallback));
 }
 
@@ -115,7 +116,11 @@ bool Nrf51822Interface::configure()
 
 void Nrf51822Interface::startOperation()
 {
-    nrfDriver.reset();
+    // nrfDriver.off();
+    // nrfDriver.on();
+
+    wait(3);
+
     // move to run mode
     log->printf("Moving to run mode...\n");
     nrfDriver.setMode(Modes::RUN);
@@ -123,8 +128,7 @@ void Nrf51822Interface::startOperation()
 
 void Nrf51822Interface::onboardSensors()
 {
-    nrfDriver.reset();
-    wait(1);
+    nrfDriver.on();
     // signal should be already received from initial NRF reset
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
 
@@ -144,12 +148,6 @@ void Nrf51822Interface::onboardSensors()
     // request config mode from NRF to perform sensor onboarding
     log->printf("Commencing sensors' onboarding...\n");
     nrfDriver.setMode(Modes::CONFIG);
-
-    log->printf("Please put all Bluetooth sensors in onboarding mode by\r\n");
-    log->printf("pressing & releasing button on sensor\r\n");
-    log->printf("Leds should start blinking.\r\n");
-    log->printf("Now press ENTER to continue.\r\n");
-    log->getc();
 
     // wait till onboarding is done and all data is stored in the NRF's NVRAM
     rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
@@ -301,6 +299,9 @@ void Nrf51822Interface::spiCallback()
     nrfDriver.read(reinterpret_cast<char*>(&inbound), sizeof(inbound));
     log->printf("SPI cb, dataId 0x%X, fieldId 0x%X, op 0x%X \n", inbound.dataId, inbound.fieldId, inbound.operation);
 
+    const Thread::State configuratorState = configurator.get_state();
+    bool configuratorRunning = (configuratorState > Thread::State::Ready) && (configuratorState < Thread::State::Deleted);
+
     switch(inbound.dataId)
     {
         case DataId::DEV_HTU: // intentional fall-through
@@ -317,9 +318,9 @@ void Nrf51822Interface::spiCallback()
                 {
                     if(servers[inbound.dataId].onboardInfo.onboarded)
                     {
-                        servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
-                                                            inbound.data,
-                                                            sizeof(inbound.data));
+                        // servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
+                        //                                     inbound.data,
+                        //                                     sizeof(inbound.data));
                     }
                     else
                     {
@@ -333,14 +334,14 @@ void Nrf51822Interface::spiCallback()
 
             if (FieldId::CONFIG_ACK == inbound.fieldId)
             {
-                if(Thread::State::Ready < configurator.get_state())
+                if(configuratorRunning)
                 {
                     configurator.signal_set(SIGNAL_CONFIG_ACK);
                 }
             }
             else if (FieldId::CONFIG_COMPLETE == inbound.fieldId)
             {
-                if(Thread::State::Ready < configurator.get_state())
+                if(configuratorRunning)
                 {
                     configurator.signal_set(SIGNAL_CONFIG_COMPLETE);
                 }
@@ -349,7 +350,7 @@ void Nrf51822Interface::spiCallback()
             {
                 log->printf("Fatal error, configuration rejected!");
                 configOk = false;
-                if(Thread::State::Ready < configurator.get_state())
+                if(configuratorRunning)
                 {
                     configurator.terminate();
                 }
@@ -362,7 +363,7 @@ void Nrf51822Interface::spiCallback()
         case DataId::DEV_CENTRAL:
             if(FieldId::CHAR_FIRMWARE_REVISION == inbound.fieldId)
             {
-                if(Thread::State::Ready < configurator.get_state())
+                if(configuratorRunning)
                 {
                     configurator.signal_set(SIGNAL_FW_VERSION_READ);
                 }
