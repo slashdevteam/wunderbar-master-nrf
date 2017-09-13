@@ -339,15 +339,6 @@ void Nrf51822Interface::onboardModeCb()
 {
     SpiFrame inbound = readSpiFrame();
 
-    const Thread::State threadState = onboardMode.get_state();
-    const bool onboardModeRunning = (threadState > Thread::State::Ready) && (threadState < Thread::State::Deleted);
-
-    if(!onboardModeRunning)
-    {
-        log->printf("Error occured, %s executed while expected thread not running! \n", __PRETTY_FUNCTION__);
-        return;
-    }
-
     switch(inbound.dataId)
     {
         case DataId::DEV_HTU: // intentional fall-through
