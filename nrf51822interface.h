@@ -60,6 +60,7 @@ public:
                               const uint8_t* data,
                               const size_t len) override;
 private:
+    void idleModeCb();
     void onboardModeCb();
     void runModeCb();
     void goToRunMode();
@@ -68,6 +69,7 @@ private:
 
 private:
     Nrf51822 nrfDriver;
+    SpiFrame readSpiFrame();
     rtos::Thread onboardMode;
     rtos::Thread runMode;
     volatile bool configOk;

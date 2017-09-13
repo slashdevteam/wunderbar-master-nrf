@@ -108,9 +108,6 @@ bool Nrf51822Interface::configure()
     // Have sorted list of all registered servers for comparison during onboarding
     serverList.sort();
 
-    // Set callback
-    nrfDriver.setRecvReadyCb(mbed::callback(this, &Nrf51822Interface::onboardModeCb));
-    
     // Perform onboarding
     onboardMode.start(mbed::callback(this, &Nrf51822Interface::onboardSensors));
     onboardMode.join();
@@ -120,14 +117,15 @@ bool Nrf51822Interface::configure()
 
 void Nrf51822Interface::startOperation()
 {
-    nrfDriver.setRecvReadyCb(mbed::callback(this, &Nrf51822Interface::runModeCb));
-    
     runMode.start(mbed::callback(this, &Nrf51822Interface::goToRunMode));
     runMode.join();
 }
 
 void Nrf51822Interface::goToRunMode()
 {
+    // Attach corresponding callback
+    nrfDriver.setRecvReadyCb(mbed::callback(this, &Nrf51822Interface::runModeCb));
+
     // Powering up NRF module
     log->printf("Powering up NRF...\n");
     nrfDriver.on();
@@ -142,6 +140,9 @@ void Nrf51822Interface::goToRunMode()
 
 void Nrf51822Interface::onboardSensors()
 {
+    // Set callback
+    nrfDriver.setRecvReadyCb(mbed::callback(this, &Nrf51822Interface::onboardModeCb));
+
     // Powering up NRF module
     log->printf("Powering up NRF...\n");
     nrfDriver.on();
@@ -180,6 +181,9 @@ void Nrf51822Interface::onboardSensors()
     
     // wait till onboarding is done
     rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
+
+    // change callback
+    nrfDriver.setRecvReadyCb(mbed::callback(this, &Nrf51822Interface::idleModeCb));
 
     // switching off NRF
     nrfDriver.off();
@@ -312,16 +316,28 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
             event = BleEvent::WRITE_OK;
         default:
             break;
-    };
+    }
 
     return event;
 }
 
-void Nrf51822Interface::onboardModeCb()
+SpiFrame Nrf51822Interface::readSpiFrame()
 {
     SpiFrame inbound;
     nrfDriver.read(reinterpret_cast<char*>(&inbound), sizeof(inbound));
     log->printf("SPI cb, dataId 0x%X, fieldId 0x%X, op 0x%X \n", inbound.dataId, inbound.fieldId, inbound.operation);
+
+    return inbound;
+}
+
+void Nrf51822Interface::idleModeCb()
+{
+    readSpiFrame();
+}
+
+void Nrf51822Interface::onboardModeCb()
+{
+    SpiFrame inbound = readSpiFrame();
 
     const Thread::State threadState = onboardMode.get_state();
     const bool onboardModeRunning = (threadState > Thread::State::Ready) && (threadState < Thread::State::Deleted);
@@ -391,9 +407,7 @@ void Nrf51822Interface::onboardModeCb()
 
 void Nrf51822Interface::runModeCb()
 {
-    SpiFrame inbound;
-    nrfDriver.read(reinterpret_cast<char*>(&inbound), sizeof(inbound));
-    log->printf("SPI cb, dataId 0x%X, fieldId 0x%X, op 0x%X \n", inbound.dataId, inbound.fieldId, inbound.operation);
+    SpiFrame inbound = readSpiFrame();
 
     switch(inbound.dataId)
     {
@@ -411,9 +425,9 @@ void Nrf51822Interface::runModeCb()
                 {
                     if(servers[inbound.dataId].onboardInfo.onboarded)
                     {
-                        servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
-                                                            inbound.data,
-                                                            sizeof(inbound.data));
+                        // servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
+                        //                                     inbound.data,
+                        //                                     sizeof(inbound.data));
                     }
                 }
             }
