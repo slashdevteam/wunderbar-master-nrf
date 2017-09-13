@@ -33,28 +33,30 @@ Nrf51822::Nrf51822(PinName _mosi,
 
 void Nrf51822::reset()
 {
-    // take control of reset pin and put it up
-    mbed::DigitalInOut resetPin(NRF_NRESET, PinDirection::PIN_OUTPUT, PinMode::PullUp, HIGH);
+    off();
+    on();
+}
 
+void Nrf51822::on()
+{
     // hold it to stabilise the level
     wait_us(NRF_RESET_TIME_US*2);
 
-    // pull reset pin down
-    resetPin = LOW;
-
-    // hold it down
-    wait_us(NRF_RESET_TIME_US*2);
-
-    // pull it up again
-    resetPin = HIGH;
+    // take control of reset pin and put it up
+    mbed::DigitalInOut resetPin(NRF_NRESET, PinDirection::PIN_OUTPUT, PinMode::PullUp, HIGH);
 }
 
-void Nrf51822::config(SpiSlaveReadReqCb cb)
+void Nrf51822::off()
+{
+    // take control of reset pin and put it up
+    mbed::DigitalInOut resetPin(NRF_NRESET, PinDirection::PIN_OUTPUT, PinMode::PullUp, LOW);
+}
+
+void Nrf51822::config()
 {
     spiDriver.frequency(2e6);
     spiDriver.format(SPI_BITS_PER_FRAME, SPI_MODE);
 
-    recvDataExtCb = cb;
     recvDataIrq.mode(PinMode::PullDown);
     recvDataIrq.rise(mbed::callback(this, &Nrf51822::recvDataIrqCb));
 
