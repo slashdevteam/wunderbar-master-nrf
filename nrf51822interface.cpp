@@ -425,9 +425,9 @@ void Nrf51822Interface::runModeCb()
                 {
                     if(servers[inbound.dataId].onboardInfo.onboarded)
                     {
-                        // servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
-                        //                                     inbound.data,
-                        //                                     sizeof(inbound.data));
+                        servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
+                                                            inbound.data,
+                                                            sizeof(inbound.data));
                     }
                 }
             }
