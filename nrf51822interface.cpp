@@ -117,6 +117,7 @@ bool Nrf51822Interface::configure()
 
 void Nrf51822Interface::startOperation()
 {
+    serverList.sort();
     runMode.start(mbed::callback(this, &Nrf51822Interface::goToRunMode));
     runMode.join();
 }
@@ -162,23 +163,23 @@ void Nrf51822Interface::onboardSensors()
         rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
     }
     log->printf("...done!\r\n");
-    
+
     // move to config mode to run flash driver and commence onboarding of requested sensors
     nrfDriver.setMode(Modes::CONFIG);
 
     log->printf("Saving passwords in NRF's flash memory...\n");
-    
+
     // wait till  all data is stored in the NRF's NVRAM
     rtos::Thread::signal_wait(SIGNAL_CONFIG_COMPLETE);
     log->printf("...done!\r\n");
-    
+
     log->printf("Please put all Bluetooth sensors in onboarding mode by\r\n");
     log->printf("pressing & releasing button on sensor\r\n");
     log->printf("Leds should start blinking.\r\n");
     log->printf("Now press ENTER to continue.\r\n");
     log->getc();
     log->printf("Onboarding started, please wait a moment...\n");
-    
+
     // wait till onboarding is done
     rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
 
@@ -375,7 +376,7 @@ void Nrf51822Interface::onboardModeCb()
             {
                 log->printf("Fatal error, configuration rejected!");
                 configOk = false;
-             
+
                 onboardMode.terminate();
             }
             break;
@@ -414,12 +415,9 @@ void Nrf51822Interface::runModeCb()
 
                 if(serverEntry != serverList.end())
                 {
-                    if(servers[inbound.dataId].onboardInfo.onboarded)
-                    {
-                        servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
-                                                            inbound.data,
-                                                            sizeof(inbound.data));
-                    }
+                    servers[inbound.dataId].bleServerCb(fieldId2BleEvent(inbound.fieldId, inbound.operation),
+                                                        inbound.data,
+                                                        sizeof(inbound.data));
                 }
             }
             break;
