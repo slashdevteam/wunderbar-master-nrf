@@ -145,7 +145,7 @@ void Nrf51822Interface::onboardSensors()
     nrfDriver.setRecvReadyCb(mbed::callback(this, &Nrf51822Interface::onboardModeCb));
 
     // Powering up NRF module
-    log->printf("Powering up NRF...\n");
+    log->printf("Powering up NRF...\r\n");
     nrfDriver.on();
 
     rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
@@ -155,10 +155,20 @@ void Nrf51822Interface::onboardSensors()
     nrfDriver.requestPasskeyStoring();
     rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
 
-    log->printf("Sending passwords to NRF...\n");
+    log->printf("Sending passwords to NRF...\r\n");
     for(auto& server : servers)
     {
         auto& config = std::get<ServerInfo>(server).serverConfig;
+        log->printf("Password for %s: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\r\n",
+                    config->name.c_str(),
+                    config->passKey.data()[0],
+                    config->passKey.data()[1],
+                    config->passKey.data()[2],
+                    config->passKey.data()[3],
+                    config->passKey.data()[4],
+                    config->passKey.data()[5],
+                    config->passKey.data()[6],
+                    config->passKey.data()[7]);
         nrfDriver.configServerPass(ServerNamesToDataId(config->name), config->passKey.data());
         rtos::Thread::signal_wait(SIGNAL_CONFIG_ACK);
     }
@@ -167,19 +177,22 @@ void Nrf51822Interface::onboardSensors()
     // move to config mode to run flash driver and commence onboarding of requested sensors
     nrfDriver.setMode(Modes::CONFIG);
 
-    log->printf("Saving passwords in NRF's flash memory...\n");
+    log->printf("Saving passwords in NRF's flash memory...\r\n");
 
     // wait till  all data is stored in the NRF's NVRAM
     rtos::Thread::signal_wait(SIGNAL_CONFIG_COMPLETE);
     log->printf("...done!\r\n");
 
+    nrfDriver.off();
     log->printf("Please put all Bluetooth sensors in onboarding mode by\r\n");
     log->printf("pressing & releasing button on sensor\r\n");
     log->printf("Leds should start blinking.\r\n");
     log->printf("Now press ENTER to continue.\r\n");
     log->getc();
-    log->printf("Onboarding started, please wait a moment...\n");
-
+    log->printf("Onboarding started, please wait a moment...\r\n");
+    nrfDriver.on();
+    rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
+    nrfDriver.setMode(Modes::CONFIG);
     // wait till onboarding is done
     rtos::Thread::signal_wait(SIGNAL_ONBOARDING_DONE);
 
