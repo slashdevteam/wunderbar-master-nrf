@@ -6,7 +6,10 @@
 #include <unordered_map>
 #include <tuple>
 #include <list>
+#include <memory>
 #include "wunderbarble.h"
+
+using ThreadHandle = std::unique_ptr<rtos::Thread>;
 
 class IStdInOut;
 
@@ -53,6 +56,7 @@ public:
     virtual bool sendToServer(const BleServerConfig& config, BleServerCallback doneCallback) override;
     virtual bool configure() override;
     virtual void startOperation() override;
+    virtual void stopOperation() override;
     virtual bool storeConfig() override;
     virtual bool requestRead(const BleServerConfig& server, uint16_t bleCharUuid) override;
     virtual bool requestWrite(const BleServerConfig& server,
@@ -70,8 +74,8 @@ private:
 private:
     Nrf51822 nrfDriver;
     SpiFrame readSpiFrame();
-    rtos::Thread onboardMode;
-    rtos::Thread runMode;
+    ThreadHandle onboardMode;
+    ThreadHandle runMode;
     volatile bool configOk;
 
     // fields to be received from sensor being onboarded
