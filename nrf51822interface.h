@@ -54,7 +54,9 @@ public:
     virtual bool registerServer(BleServerConfig& config, BleServerCallback serverCallback) override;
     virtual void serverDiscoveryComlpete(BleServerConfig& config) override;
     virtual bool sendToServer(const BleServerConfig& config, BleServerCallback doneCallback) override;
-    virtual bool configure() override;
+    virtual bool configure(const BleConfig& bleConfig) override;
+    virtual void setTimeout(uint32_t timeout) override;
+    virtual bool onboard(BleConfig& config) override;
     virtual void startOperation() override;
     virtual void stopOperation() override;
     virtual bool storeConfig() override;
@@ -69,12 +71,14 @@ private:
     void runModeCb();
     void goToRunMode();
     void onboardSensors();
+    void setPasswords();
     void handleOnboarding(SpiFrame&);
 
 private:
     Nrf51822 nrfDriver;
     SpiFrame readSpiFrame();
     ThreadHandle onboardMode;
+    uint32_t signalTimeout;
     ThreadHandle runMode;
     volatile bool configOk;
 
@@ -84,7 +88,7 @@ private:
     ServerList serverList;
     ServerList serversOnboarded;
     Servers    servers;
-
+    BleConfig* bleConfig;
     BleEvent fieldId2BleEvent(FieldId fId, Operation op);
     IStdInOut* log;
 };
