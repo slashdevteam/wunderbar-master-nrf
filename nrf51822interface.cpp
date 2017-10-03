@@ -291,7 +291,7 @@ void Nrf51822Interface::onboardSensors()
     nrfDriver.setRecvReadyCb(mbed::callback(this, &Nrf51822Interface::onboardModeCb));
 
     nrfDriver.on();
-    waitEvent = rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ);
+    waitEvent = rtos::Thread::signal_wait(SIGNAL_FW_VERSION_READ, signalTimeout);
     if(osEventSignal == waitEvent.status)
     {
         nrfDriver.setMode(Modes::CONFIG);
