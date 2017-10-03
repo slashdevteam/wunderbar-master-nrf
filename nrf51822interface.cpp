@@ -82,7 +82,6 @@ bool Nrf51822Interface::registerServer(BleServerConfig& config, BleServerCallbac
         if(existingServer == servers.end())
         {
             servers.emplace(ServerNamesToDataId(config.name), ServerInfo(config, serverCallback));
-            // serverList.emplace_back(serverId);
             success = true;
             log->printf("ok!\n");
         }
@@ -139,12 +138,6 @@ bool Nrf51822Interface::configure(const BleConfig& bleConfig)
     }
     // Have sorted list of all registered servers for comparison during onboarding
     serverList.sort();
-
-    // Perform onboarding
-    onboardMode = std::make_unique<rtos::Thread>(osPriorityNormal, 0x400);
-    onboardMode->start(mbed::callback(this, &Nrf51822Interface::setPasswords));
-    onboardMode->join();
-    onboardMode.reset(nullptr);
     return configOk;
 }
 
@@ -328,7 +321,16 @@ void Nrf51822Interface::onboardSensors()
 
 bool Nrf51822Interface::storeConfig()
 {
-    return false;
+    configOk = false;
+    // Have sorted list of all registered servers for comparison during onboarding
+    serverList.sort();
+
+    // Perform onboarding
+    onboardMode = std::make_unique<rtos::Thread>(osPriorityNormal, 0x400);
+    onboardMode->start(mbed::callback(this, &Nrf51822Interface::setPasswords));
+    onboardMode->join();
+    onboardMode.reset(nullptr);
+    return configOk;
 }
 
 bool Nrf51822Interface::requestRead(const BleServerConfig& server, uint16_t bleCharUuid)
