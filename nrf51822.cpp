@@ -75,7 +75,7 @@ void Nrf51822::recvDataIrqCb()
 
 void Nrf51822::recvDataHandler()
 {
-    while (true)
+    while(true)
     {
         Thread::signal_wait(SIGNAL_IRQ);
         if (recvDataExtCb)
@@ -89,7 +89,7 @@ void Nrf51822::write(const char* txData, size_t len)
 {
     SpiCsCrit scrit(ssel);
 
-    for (auto byte = 0U; byte < len; ++byte)
+    for(auto byte = 0U; byte < len; ++byte)
     {
         spiDriver.write(txData[byte]);
     }
@@ -99,7 +99,7 @@ void Nrf51822::read(char* rxData, size_t len)
 {
     SpiCsCrit scrit(ssel);
 
-    for (auto byte = 0U; byte < len; ++byte)
+    for(auto byte = 0U; byte < len; ++byte)
     {
         rxData[byte] = spiDriver.write(DUMMY_BYTE);
     }
@@ -109,7 +109,7 @@ void Nrf51822::readWrite(char* rxData, const char* txData, size_t len)
 {
     SpiCsCrit scrit(ssel);
 
-    for (auto byte = 0U; byte < len; ++byte)
+    for(auto byte = 0U; byte < len; ++byte)
     {
         rxData[byte] = spiDriver.write(txData[byte]);
     }
@@ -165,7 +165,7 @@ void Nrf51822::requestCharacteristicRead(const DataId client, FieldId bleChar)
                       bleChar,
                       Operation::READ};
 
-    read(reinterpret_cast<char*>(&frame), sizeof(frame));
+    write(reinterpret_cast<char*>(&frame), sizeof(frame));
 }
 
 void Nrf51822::requestCharacteristicWrite(DataId client, FieldId bleChar, const uint8_t* data, size_t len)
