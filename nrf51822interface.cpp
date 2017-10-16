@@ -98,11 +98,6 @@ bool Nrf51822Interface::registerServer(BleServerConfig& config, BleServerCallbac
     return success;
 }
 
-bool Nrf51822Interface::sendToServer(const BleServerConfig& config, BleServerCallback doneCallback)
-{
-    return false;
-}
-
 void Nrf51822Interface::setTimeout(uint32_t timeout)
 {
     if(timeout == 0)
@@ -417,7 +412,7 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
         break;
 
         case FieldId::CHAR_SENSOR_DATA_R:
-            if (Operation::WRITE == op)
+            if(Operation::WRITE == op)
             {
                 event = BleEvent::DATA_SENSOR_NEW_DATA;
             }
@@ -428,7 +423,7 @@ BleEvent Nrf51822Interface::fieldId2BleEvent(FieldId fId, Operation op)
         break;
 
         case FieldId::CHAR_MANUFACTURER_NAME:
-            event = BleEvent::DATA_HARDWARE_REVISION;
+            event = BleEvent::DATA_MANUFACTURER_NAME;
         break;
 
         case FieldId::CHAR_HARDWARE_REVISION:
@@ -463,7 +458,6 @@ SpiFrame Nrf51822Interface::readSpiFrame()
 {
     SpiFrame inbound;
     nrfDriver.read(reinterpret_cast<char*>(&inbound), sizeof(inbound));
-
     return inbound;
 }
 

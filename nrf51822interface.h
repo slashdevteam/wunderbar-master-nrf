@@ -53,7 +53,6 @@ public:
     // IBleGateway interface
     virtual bool registerServer(BleServerConfig& config, BleServerCallback serverCallback) override;
     virtual void serverDiscoveryComlpete(BleServerConfig& config) override;
-    virtual bool sendToServer(const BleServerConfig& config, BleServerCallback doneCallback) override;
     virtual bool configure(const BleConfig& bleConfig) override;
     virtual void setTimeout(uint32_t timeout) override;
     virtual bool onboard(BleConfig& config) override;
