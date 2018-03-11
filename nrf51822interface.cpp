@@ -328,6 +328,11 @@ bool Nrf51822Interface::storeConfig()
     return configOk;
 }
 
+char* Nrf51822Interface::getRevision()
+{
+    return revision;
+}
+
 bool Nrf51822Interface::requestRead(const BleServerConfig& server, uint16_t bleCharUuid)
 {
     nrfDriver.requestCharacteristicRead(ServerNamesToDataId(server.name), CharUuidToFieldId(bleCharUuid));
@@ -517,6 +522,7 @@ void Nrf51822Interface::onboardModeCb()
         case DataId::DEV_CENTRAL:
             if(FieldId::CHAR_FIRMWARE_REVISION == inbound.fieldId)
             {
+                storeRevision(inbound.data);
                 onboardMode->signal_set(SIGNAL_FW_VERSION_READ);
             }
             break;
@@ -560,7 +566,7 @@ void Nrf51822Interface::runModeCb()
             {
                 const Thread::State threadState = runMode->get_state();
                 const bool threadRunning = (threadState > Thread::State::Ready) && (threadState < Thread::State::Deleted);
-
+                storeRevision(inbound.data);
                 if(threadRunning)
                 {
                     runMode->signal_set(SIGNAL_FW_VERSION_READ);
@@ -571,5 +577,14 @@ void Nrf51822Interface::runModeCb()
         default:
             break;
     }
+}
 
+void Nrf51822Interface::storeRevision(uint8_t* data)
+{
+    size_t length = data[0];
+    if(length > sizeof(revision))
+    {
+        length = sizeof(revision);
+    }
+    std::memcpy(revision, &data[1], length);
 }

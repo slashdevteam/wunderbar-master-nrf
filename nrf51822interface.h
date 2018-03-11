@@ -64,6 +64,7 @@ public:
                               uint16_t bleCharUuid,
                               const uint8_t* data,
                               const size_t len) override;
+    virtual char* getRevision() override;
 private:
     void idleModeCb();
     void onboardModeCb();
@@ -72,6 +73,7 @@ private:
     void onboardSensors();
     void setPasswords();
     void handleOnboarding(SpiFrame&);
+    void storeRevision(uint8_t* data);
 
 private:
     Nrf51822 nrfDriver;
@@ -88,6 +90,7 @@ private:
     ServerList serversOnboarded;
     Servers    servers;
     BleConfig* bleConfig;
+    char       revision[SPI_PACKET_DATA_SIZE];
     BleEvent fieldId2BleEvent(FieldId fId, Operation op);
     IStdInOut* log;
 };
