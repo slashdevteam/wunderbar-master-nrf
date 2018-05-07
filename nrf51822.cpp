@@ -1,4 +1,3 @@
-
 #include "nrf51822.h"
 #include "spicscrit.h"
 #include "wunderbarble.h"
